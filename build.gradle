@@ -4,6 +4,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:0.9.1'
+        classpath 'org.ajoberstar:gradle-git:0.8.0'
     }
 }
 apply plugin: 'android-library'
@@ -33,6 +34,8 @@ allprojects {
         mavenCentral()
     }
 }
+
+import org.ajoberstar.grgit.*
 
 //upload aar to maven central with sonatype
 apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
