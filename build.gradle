@@ -49,5 +49,10 @@ task cloneVlcAndroid << {
 
 cloneVlcAndroid.onlyIf { !vlcSource.exists() }
 
+task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
+    def repo = Grgit.open(project.ext.vlcSource)
+    repo.pull(rebase: true)
+}
+
 //upload aar to maven central with sonatype
 apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
