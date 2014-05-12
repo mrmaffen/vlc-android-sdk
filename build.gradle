@@ -54,5 +54,15 @@ task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
     repo.pull(rebase: true)
 }
 
+task buildVlc(type: Exec, dependsOn: 'updateVlcCheckout') {
+    workingDir project.ext.vlcSource
+    commandLine './compile.sh'
+}
+
+task updateVlc(type: Copy, dependsOn: 'buildVlc') {
+    from ('vlc-android-' + project.ext.androidAbi + '/vlc-android/libs/' + project.ext.androidAbi + '/libvlcjni.so')
+    into ('src/main/jniLibs/' + project.ext.androidAbi)
+}
+
 //upload aar to maven central with sonatype
 apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
