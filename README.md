@@ -12,22 +12,22 @@ To build a fresh version of libvlcjni.so, please follow these steps:
 
 * Set `$ANDROID_SDK` to point to your Android SDK directory
 
-```export ANDROID_SDK=/path/to/android-sdk```
+  ```export ANDROID_SDK=/path/to/android-sdk```
 
 * Set `$ANDROID_NDK` to point to your Android NDK directory
 
-```export ANDROID_NDK=/path/to/android-ndk```
+  ```export ANDROID_NDK=/path/to/android-ndk```
 
 * Add some useful binaries to your `$PATH`
 
-```export PATH=$PATH:$ANDROID_SDK/platform-tools:$ANDROID_SDK/tools```
+  ```export PATH=$PATH:$ANDROID_SDK/platform-tools:$ANDROID_SDK/tools```
 
 * Export the ABI for your device (one of armeabi-v7a, armeabi, x86 or mips):
 
-```export ANDROID_ABI=armeabi-v7a```
+  ```export ANDROID_ABI=armeabi-v7a```
 
 * Run gradle:
 
-```./gradlew updateVlc```
+  ```./gradlew updateVlc```
 
 For more information on compiling VLC for use on Android see: https://wiki.videolan.org/AndroidCompile
