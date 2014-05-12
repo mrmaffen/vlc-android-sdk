@@ -41,13 +41,11 @@ project.ext.androidAbi = System.getenv()['ANDROID_ABI']
 project.ext.vlcSource = file('vlc-android-' + project.ext.androidAbi)
 
 task cloneVlcAndroid << {
-    // Only clone once.
-    if (!project.ext.vlcSource.exists()) {
-        Grgit.clone(uri: 'http://git.videolan.org/git/vlc-ports/android.git', dir: project.ext.vlcSource)
-    }
+    Grgit.clone(uri: 'http://git.videolan.org/git/vlc-ports/android.git', dir: project.ext.vlcSource)
 }
 
-cloneVlcAndroid.onlyIf { !vlcSource.exists() }
+// Only clone once.
+cloneVlcAndroid.onlyIf { !project.ext.vlcSource.exists() }
 
 task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
     def repo = Grgit.open(project.ext.vlcSource)
