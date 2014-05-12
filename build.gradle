@@ -37,5 +37,17 @@ allprojects {
 
 import org.ajoberstar.grgit.*
 
+project.ext.androidAbi = System.getenv()['ANDROID_ABI']
+project.ext.vlcSource = file('vlc-android-' + project.ext.androidAbi)
+
+task cloneVlcAndroid << {
+    // Only clone once.
+    if (!project.ext.vlcSource.exists()) {
+        Grgit.clone(uri: 'http://git.videolan.org/git/vlc-ports/android.git', dir: project.ext.vlcSource)
+    }
+}
+
+cloneVlcAndroid.onlyIf { !vlcSource.exists() }
+
 //upload aar to maven central with sonatype
 apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
