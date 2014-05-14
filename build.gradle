@@ -4,6 +4,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:0.9.1'
+        classpath 'org.ajoberstar:gradle-git:0.8.0'
     }
 }
 apply plugin: 'android-library'
@@ -32,6 +33,33 @@ allprojects {
     repositories {
         mavenCentral()
     }
+}
+
+import org.ajoberstar.grgit.*
+
+project.ext.androidAbi = System.getenv()['ANDROID_ABI']
+project.ext.vlcSource = file('vlc-android-' + project.ext.androidAbi)
+
+task cloneVlcAndroid << {
+    Grgit.clone(uri: 'http://git.videolan.org/git/vlc-ports/android.git', dir: project.ext.vlcSource)
+}
+
+// Only clone once.
+cloneVlcAndroid.onlyIf { !project.ext.vlcSource.exists() }
+
+task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
+    def repo = Grgit.open(project.ext.vlcSource)
+    repo.pull(rebase: true)
+}
+
+task buildVlc(type: Exec, dependsOn: 'updateVlcCheckout') {
+    workingDir project.ext.vlcSource
+    commandLine './compile.sh'
+}
+
+task updateVlc(type: Copy, dependsOn: 'buildVlc') {
+    from ('vlc-android-' + project.ext.androidAbi + '/vlc-android/libs/' + project.ext.androidAbi + '/libvlcjni.so')
+    into ('src/main/jniLibs/' + project.ext.androidAbi)
 }
 
 //upload aar to maven central with sonatype
