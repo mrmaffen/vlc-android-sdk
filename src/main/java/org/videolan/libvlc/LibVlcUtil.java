@@ -31,6 +31,7 @@ import java.nio.ByteOrder;
 import java.util.Locale;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
@@ -73,6 +74,11 @@ public class LibVlcUtil {
         return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
     }
 
+    public static boolean isKitKatOrLater()
+    {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT;
+    }
+
     private static String errorMsg = null;
     private static boolean isCompatible = false;
     public static String getErrorMsg() {
@@ -80,10 +86,12 @@ public class LibVlcUtil {
     }
 
     public static File URItoFile(String URI) {
+        if(URI == null) return null;
         return new File(Uri.decode(URI).replace("file://",""));
     }
 
     public static String URItoFileName(String URI) {
+        if(URI == null) return null;
         return URItoFile(URI).getName();
     }
 
@@ -92,7 +100,13 @@ public class LibVlcUtil {
         // If already checked return cached result
         if(errorMsg != null || isCompatible) return isCompatible;
 
-        ElfData elf = readLib(context.getApplicationInfo().dataDir + "/lib/libvlcjni.so");
+        ApplicationInfo applicationInfo = context.getApplicationInfo();
+        String libBasePath;
+        if ((applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0)
+            libBasePath = "/system";
+        else
+            libBasePath = applicationInfo.dataDir;
+        ElfData elf = readLib(libBasePath + "/lib/libvlcjni.so");
         if(elf == null) {
             Log.e(TAG, "WARNING: Unable to read libvlcjni.so; cannot check device ABI!");
             Log.e(TAG, "WARNING: Cannot guarantee correct ABI for this build (may crash)!");
@@ -115,7 +129,8 @@ public class LibVlcUtil {
         float bogoMIPS = -1;
         int processors = 0;
 
-        if(CPU_ABI.equals("x86")) {
+        if(CPU_ABI.equals("x86") ||
+           CPU_ABI2.equals("x86")) {
             hasX86 = true;
         } else if(CPU_ABI.equals("armeabi-v7a") ||
                   CPU_ABI2.equals("armeabi-v7a")) {
@@ -131,6 +146,10 @@ public class LibVlcUtil {
             BufferedReader br = new BufferedReader(fileReader);
             String line;
             while((line = br.readLine()) != null) {
+                if(!hasArmV7 && line.contains("AArch64")) {
+                    hasArmV7 = true;
+                    hasArmV6 = true; /* Armv8 is backwards compatible to < v7 */
+                }
                 if(!hasArmV7 && line.contains("ARMv7")) {
                     hasArmV7 = true;
                     hasArmV6 = true; /* Armv7 is backwards compatible to < v6 */
@@ -141,13 +160,15 @@ public class LibVlcUtil {
                 // (see kernel sources arch/x86/kernel/cpu/proc.c)
                 if(line.contains("clflush size"))
                     hasX86 = true;
+                if(line.contains("GenuineIntel"))
+                    hasX86 = true;
                 // "microsecond timers" is specific to MIPS.
                 // see arch/mips/kernel/proc.c
                 if(line.contains("microsecond timers"))
                     hasMips = true;
-                if(!hasNeon && line.contains("neon"))
+                if(!hasNeon && (line.contains("neon") || line.contains("asimd")))
                     hasNeon = true;
-                if(!hasFpu && line.contains("vfp"))
+                if(!hasFpu && (line.contains("vfp") || (line.contains("Features") && line.contains("fp"))))
                     hasFpu = true;
                 if(line.startsWith("processor"))
                     processors++;
@@ -208,6 +229,23 @@ public class LibVlcUtil {
             }
         }
 
+        float frequency = -1;
+        try {
+            FileReader fileReader = new FileReader("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            BufferedReader br = new BufferedReader(fileReader);
+            String line = "";
+            try {
+                line = br.readLine();
+                frequency = Float.parseFloat(line) / 1000.f; /* Convert to MHz */
+            } catch(NumberFormatException e) {
+                Log.w(TAG, "Could not parse maximum CPU frequency!");
+                Log.w(TAG, "Failed to parse: " + line);
+            }
+            fileReader.close();
+        } catch(IOException ex) {
+            Log.w(TAG, "Could not find maximum CPU frequency!");
+        }
+
         errorMsg = null;
         isCompatible = true;
         // Store into MachineSpecs
@@ -220,6 +258,7 @@ public class LibVlcUtil {
         machineSpecs.hasX86 = hasX86;
         machineSpecs.bogoMIPS = bogoMIPS;
         machineSpecs.processors = processors;
+        machineSpecs.frequency = frequency;
         return true;
     }
 
@@ -236,6 +275,7 @@ public class LibVlcUtil {
         public boolean hasX86;
         public float bogoMIPS;
         public int processors;
+        public float frequency; /* in MHz */
     }
 
     private static final int EM_386 = 3;

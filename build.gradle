@@ -3,14 +3,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.9.1'
+        classpath 'com.android.tools.build:gradle:0.13.0'
         classpath 'org.ajoberstar:gradle-git:0.8.0'
     }
 }
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 android {
     compileSdkVersion 19
-    buildToolsVersion '19.0.3'
+    buildToolsVersion '20.0.0'
 
     defaultConfig {
         minSdkVersion 9
@@ -63,4 +63,4 @@ task updateVlc(type: Copy, dependsOn: 'buildVlc') {
 }
 
 //upload aar to maven central with sonatype
-apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
+apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/8cfffbbff6b9094af1c92318ea5d5a5bb0b8bb30/gradle-mvn-push.gradle'

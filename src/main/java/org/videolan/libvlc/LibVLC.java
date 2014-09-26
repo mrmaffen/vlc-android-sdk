@@ -20,13 +20,14 @@
 
 package org.videolan.libvlc;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 import android.view.Surface;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Map;
 
 public class LibVLC {
     private static final String TAG = "VLC/LibVLC";
@@ -57,7 +58,7 @@ public class LibVLC {
     private StringBuffer mDebugLogBuffer;
     private boolean mIsBufferingLog = false;
 
-    private Aout mAout;
+    private AudioOutput mAout;
 
     /** Keep screen bright */
     //private WakeLock mWakeLock;
@@ -74,6 +75,13 @@ public class LibVLC {
     private float[] equalizer = null;
     private boolean frameSkip = false;
     private int networkCaching = 0;
+    private boolean httpReconnect = false;
+
+    /** Path of application-specific cache */
+    private String mCachePath = "";
+
+    /** Native crash handler */
+    private OnNativeCrashListener mOnNativeCrashListener;
 
     /** Check in libVLC already initialized otherwise crash */
     private boolean mIsInitialized = false;
@@ -93,10 +101,16 @@ public class LibVLC {
                 System.loadLibrary("iomx-gingerbread");
             else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB_MR2)
                 System.loadLibrary("iomx-hc");
-            else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR2)
+            else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1)
                 System.loadLibrary("iomx-ics");
+            else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR2)
+                System.loadLibrary("iomx-jbmr2");
+            else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT)
+                System.loadLibrary("iomx-kk");
         } catch (Throwable t) {
-            Log.w(TAG, "Unable to load the iomx library: " + t);
+            // No need to warn if it isn't found, when we intentionally don't build these except for debug
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+                Log.w(TAG, "Unable to load the iomx library: " + t);
         }
         try {
             System.loadLibrary("vlcjni");
@@ -146,7 +160,7 @@ public class LibVLC {
      * It is private because this class is a singleton.
      */
     private LibVLC() {
-        mAout = new Aout();
+        mAout = new AudioOutput();
     }
 
     /**
@@ -155,7 +169,7 @@ public class LibVLC {
      * destroy() before exiting.
      */
     @Override
-    public void finalize() {
+    protected void finalize() {
         if (mLibVlcInstance != 0) {
             Log.d(TAG, "LibVLC is was destroyed yet before finalize()");
             destroy();
@@ -293,9 +307,12 @@ public class LibVLC {
             LibVlcUtil.MachineSpecs m = LibVlcUtil.getMachineSpecs();
             if( (m.hasArmV6 && !(m.hasArmV7)) || m.hasMips )
                 ret = 4;
-            else if(m.bogoMIPS > 1200 && m.processors > 2)
+            else if(m.frequency >= 1200 && m.processors > 2)
                 ret = 1;
-            else
+            else if(m.bogoMIPS >= 1200 && m.processors > 2) {
+                ret = 1;
+                Log.d(TAG, "Used bogoMIPS due to lack of frequency info");
+            } else
                 ret = 3;
         } else if(deblocking > 4) { // sanity check
             ret = 3;
@@ -356,6 +373,14 @@ public class LibVLC {
         this.networkCaching = networkcaching;
     }
 
+    public boolean getHttpReconnect() {
+        return httpReconnect;
+    }
+
+    public void setHttpReconnect(boolean httpReconnect) {
+        this.httpReconnect = httpReconnect;
+    }
+
     /**
      * Initialize the libVLC class.
      *
@@ -371,6 +396,9 @@ public class LibVLC {
                 Log.e(TAG, LibVlcUtil.getErrorMsg());
                 throw new LibVlcException();
             }
+
+            File cacheDir = context.getCacheDir();
+            mCachePath = (cacheDir != null) ? cacheDir.getAbsolutePath() : null;
             nativeInit();
             mMediaList = mPrimaryList = new MediaList(this);
             setEventHandler(EventHandler.getInstance());
@@ -540,6 +568,11 @@ public class LibVLC {
     public native void stop();
 
     /**
+     * Get player state.
+     */
+    public native int getPlayerState();
+
+    /**
      * Gets volume as integer
      */
     public native int getVolume();
@@ -618,6 +651,8 @@ public class LibVLC {
 
     public native Map<Integer,String> getAudioTrackDescription();
 
+    public native Map<String, Object> getStats();
+
     public native int getAudioTrack();
 
     public native int setAudioTrack(int index);
@@ -635,6 +670,8 @@ public class LibVLC {
     public native int getSpuTracksCount();
 
     public static native String nativeToURI(String path);
+    
+    public native static void sendMouseEvent( int action, int button, int x, int y);
 
     /**
      * Quickly converts path to URIs, which are mandatory in libVLC.
@@ -683,4 +720,27 @@ public class LibVLC {
     public native String[] getPresets();
 
     public native float[] getPreset(int index);
+
+    public static interface OnNativeCrashListener {
+        public void onNativeCrash();
+    }
+
+    public void setOnNativeCrashListener(OnNativeCrashListener l) {
+        mOnNativeCrashListener = l;
+    }
+
+    private void onNativeCrash() {
+        if (mOnNativeCrashListener != null)
+            mOnNativeCrashListener.onNativeCrash();
+    }
+
+    public String getCachePath() {
+        return mCachePath;
+    }
+
+    public native int getTitle();
+    public native void setTitle(int title);
+    public native int getChapterCountForTitle(int title);
+    public native int getTitleCount();
+
 }
