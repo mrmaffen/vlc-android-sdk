@@ -4,7 +4,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:0.13.0'
-        classpath 'org.ajoberstar:gradle-git:0.8.0'
+        classpath 'org.ajoberstar:gradle-git:0.10.1'
     }
 }
 apply plugin: 'com.android.library'
