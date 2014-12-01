@@ -32,7 +32,7 @@ public class EventHandler {
      * Be sure to subscribe to events you need in the JNI too.
      */
 
-    //public static final int MediaMetaChanged                = 0;
+    public static final int MediaMetaChanged                  = 0;
     //public static final int MediaSubItemAdded               = 1;
     //public static final int MediaDurationChanged            = 2;
     public static final int MediaParsedChanged                = 3;
@@ -50,7 +50,7 @@ public class EventHandler {
     //public static final int MediaPlayerBackward             = 0x108;
     public static final int MediaPlayerEndReached             = 0x109;
     public static final int MediaPlayerEncounteredError       = 0x10a;
-    //public static final int MediaPlayerTimeChanged          = 0x10b;
+    public static final int MediaPlayerTimeChanged            = 0x10b;
     public static final int MediaPlayerPositionChanged        = 0x10c;
     //public static final int MediaPlayerSeekableChanged      = 0x10d;
     //public static final int MediaPlayerPausableChanged      = 0x10e;

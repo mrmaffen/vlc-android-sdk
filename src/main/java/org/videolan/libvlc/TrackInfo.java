@@ -32,6 +32,7 @@ public class TrackInfo {
     public int Id;
     public String Codec;
     public String Language;
+    public int Bitrate;
 
     /* Video */
     public int Height;
@@ -49,4 +50,6 @@ public class TrackInfo {
     public String Album;
     public String Genre;
     public String ArtworkURL;
+    public String NowPlaying;
+    public String TrackNumber;
 }

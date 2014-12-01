@@ -32,7 +32,7 @@ public class MediaList {
 
     /* Since the libvlc_media_t is not created until the media plays, we have
      * to cache them here. */
-    private class MediaHolder {
+    private static class MediaHolder {
         Media m;
         boolean noVideo; // default false
         boolean noHardwareAcceleration; // default false
@@ -103,7 +103,7 @@ public class MediaList {
      */
     public int expandMedia(int position) {
         ArrayList<String> children = new ArrayList<String>();
-        int ret = expandMedia(mLibVLC, position, children);
+        int ret = mLibVLC.expandMedia(position, children);
         if(ret == 0) {
             mEventHandler.callback(EventHandler.CustomMediaListExpanding, new Bundle());
             this.remove(position);
@@ -114,17 +114,15 @@ public class MediaList {
         }
         return ret;
     }
-    private native int expandMedia(LibVLC libvlc_instance, int position, ArrayList<String> children);
 
     public void loadPlaylist(String mrl) {
         ArrayList<String> items = new ArrayList<String>();
-        loadPlaylist(mLibVLC, mrl, items);
+        mLibVLC.loadPlaylist(mrl, items);
         this.clear();
         for(String item : items) {
             this.add(item);
         }
     }
-    private native void loadPlaylist(LibVLC libvlc_instance, String mrl, ArrayList<String> items);
 
     public void insert(int position, String mrl) {
         insert(position, new Media(mLibVLC, mrl));
@@ -198,34 +196,15 @@ public class MediaList {
     }
 
     public String[] getMediaOptions(int position) {
-        boolean noHardwareAcceleration = mLibVLC.getHardwareAcceleration() == 0;
+        boolean noHardwareAcceleration = false;
         boolean noVideo = false;
         if (isValid(position))
         {
-            if (!noHardwareAcceleration)
-                noHardwareAcceleration = mInternalList.get(position).noHardwareAcceleration;
+            noHardwareAcceleration = mInternalList.get(position).noHardwareAcceleration;
             noVideo = mInternalList.get(position).noVideo;
         }
-        ArrayList<String> options = new ArrayList<String>();
 
-        if (!noHardwareAcceleration) {
-            /*
-             * Set higher caching values if using iomx decoding, since some omx
-             * decoders have a very high latency, and if the preroll data isn't
-             * enough to make the decoder output a frame, the playback timing gets
-             * started too soon, and every decoded frame appears to be too late.
-             * On Nexus One, the decoder latency seems to be 25 input packets
-             * for 320x170 H.264, a few packets less on higher resolutions.
-             * On Nexus S, the decoder latency seems to be about 7 packets.
-             */
-            options.add(":file-caching=1500");
-            options.add(":network-caching=1500");
-            options.add(":codec=mediacodec,iomx,all");
-        }
-        if (noVideo)
-            options.add(":no-video");
-
-        return options.toArray(new String[options.size()]);
+        return mLibVLC.getMediaOptions(noHardwareAcceleration, noVideo);
     }
 
     public EventHandler getEventHandler() {

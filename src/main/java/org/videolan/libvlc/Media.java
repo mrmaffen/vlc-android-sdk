@@ -3,19 +3,19 @@
  *****************************************************************************
  * Copyright © 2011-2013 VLC authors and VideoLAN
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2.1 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
 package org.videolan.libvlc;
@@ -25,7 +25,6 @@ import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Locale;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
 
@@ -39,7 +38,7 @@ public class Media implements Comparable<Media> {
 
     static {
         String[] video_extensions = {
-                ".3g2", ".3gp", ".3gp2", ".3gpp", ".amv", ".asf", ".avi", ".divx", "drc", ".dv",
+                ".3g2", ".3gp", ".3gp2", ".3gpp", ".amv", ".asf", ".avi", ".divx", ".drc", ".dv",
                 ".f4v", ".flv", ".gvi", ".gxf", ".ismv", ".iso", ".m1v", ".m2v", ".m2t", ".m2ts",
                 ".m4v", ".mkv", ".mov", ".mp2", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg",
                 ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mpv2", ".mts", ".mtv", ".mxf", ".mxg",
@@ -48,7 +47,7 @@ public class Media implements Comparable<Media> {
 
         String[] audio_extensions = {
                 ".3ga", ".a52", ".aac", ".ac3", ".adt", ".adts", ".aif", ".aifc", ".aiff", ".amr",
-                ".aob", ".ape", ".awb", ".caf", ".dts", ".flac", ".it", ".m4a", ".m4p",
+                ".aob", ".ape", ".awb", ".caf", ".dts", ".flac", ".it", ".m4a", ".m4b", ".m4p",
                 ".mid", ".mka", ".mlp", ".mod", ".mpa", ".mp1", ".mp2", ".mp3", ".mpc", ".mpga",
                 ".oga", ".ogg", ".oma", ".opus", ".ra", ".ram", ".rmi", ".s3m", ".spx", ".tta",
                 ".voc", ".vqf", ".w64", ".wav", ".wma", ".wv", ".xa", ".xm" };
@@ -101,7 +100,7 @@ public class Media implements Comparable<Media> {
     private String mGenre;
     private String mCopyright;
     private String mAlbum;
-    private String mTrackNumber;
+    private int mTrackNumber;
     private String mDescription;
     private String mRating;
     private String mDate;
@@ -111,6 +110,30 @@ public class Media implements Comparable<Media> {
     private String mEncodedBy;
     private String mTrackID;
     private String mArtworkURL;
+
+    public final static int libvlc_meta_Title       = 0;
+    public final static int libvlc_meta_Artist      = 1;
+    public final static int libvlc_meta_Genre       = 2;
+//    public final static int libvlc_meta_Copyright   = 3;
+    public final static int libvlc_meta_Album       = 4;
+//    public final static int libvlc_meta_TrackNumber = 5;
+//    public final static int libvlc_meta_Description = 6;
+//    public final static int libvlc_meta_Rating      = 7;
+//    public final static int libvlc_meta_Date        = 8;
+//    public final static int libvlc_meta_Setting     = 9;
+//    public final static int libvlc_meta_URL         = 10;
+//    public final static int libvlc_meta_Language    = 11;
+    public final static int libvlc_meta_NowPlaying  = 12;
+//    public final static int libvlc_meta_Publisher   = 13;
+//    public final static int libvlc_meta_EncodedBy   = 14;
+    public final static int libvlc_meta_ArtworkURL  = 15;
+//    public final static int libvlc_meta_TrackID     = 16;
+//    public final static int libvlc_meta_TrackTotal  = 17;
+//    public final static int libvlc_meta_Director    = 18;
+//    public final static int libvlc_meta_Season      = 19;
+//    public final static int libvlc_meta_Episode     = 20;
+//    public final static int libvlc_meta_ShowName    = 21;
+//    public final static int libvlc_meta_Actors      = 22;
 
     private final String mLocation;
     private String mFilename;
@@ -159,6 +182,11 @@ public class Media implements Comparable<Media> {
                 mAlbum = getValueWrapper(track.Album, UnknownStringType.Album);
                 mGenre = getValueWrapper(track.Genre, UnknownStringType.Genre);
                 mArtworkURL = track.ArtworkURL;
+                mNowPlaying = track.NowPlaying;
+                try {
+                    mTrackNumber = Integer.parseInt(track.TrackNumber);
+                } catch (NumberFormatException ignored) {
+                }
                 Log.d(TAG, "Title " + mTitle);
                 Log.d(TAG, "Artist " + mArtist);
                 Log.d(TAG, "Genre " + mGenre);
@@ -168,9 +196,9 @@ public class Media implements Comparable<Media> {
 
         /* No useful ES found */
         if (mType == TYPE_ALL) {
-            int dotIndex = mLocation.lastIndexOf("");
+            int dotIndex = mLocation.lastIndexOf(".");
             if (dotIndex != -1) {
-                String fileExt = mLocation.substring(dotIndex);
+                String fileExt = mLocation.substring(dotIndex).toLowerCase(Locale.ENGLISH);
                 if( Media.VIDEO_EXTENSIONS.contains(fileExt) ) {
                     mType = TYPE_VIDEO;
                 } else if (Media.AUDIO_EXTENSIONS.contains(fileExt)) {
@@ -182,7 +210,7 @@ public class Media implements Comparable<Media> {
 
     public Media(String location, long time, long length, int type,
             Bitmap picture, String title, String artist, String genre, String album,
-            int width, int height, String artworkURL, int audio, int spu) {
+            int width, int height, String artworkURL, int audio, int spu, int trackNumber) {
         mLocation = location;
         mFilename = null;
         mTime = time;
@@ -199,6 +227,7 @@ public class Media implements Comparable<Media> {
         mGenre = getValueWrapper(genre, UnknownStringType.Genre);
         mAlbum = getValueWrapper(album, UnknownStringType.Album);
         mArtworkURL = artworkURL;
+        mTrackNumber = trackNumber;
     }
 
     private enum UnknownStringType { Artist , Genre, Album };
@@ -207,7 +236,7 @@ public class Media implements Comparable<Media> {
      * hard-coded dependency gracefully for 3rd party libvlc apps while still
      * maintaining good l10n in VLC for Android.
      *
-     * @see org.videolan.vlc.Util#getValue(String, int)
+     * @see org.videolan.vlc.util.Util#getValue(String, int)
      *
      * @param string The default string
      * @param type Alias for R.string.xxx
@@ -271,8 +300,13 @@ public class Media implements Comparable<Media> {
         return mLocation;
     }
 
-    public void updateMeta() {
-
+    public void updateMeta(LibVLC libVLC) {
+        mTitle = libVLC.getMeta(libvlc_meta_Title);
+        mArtist = getValueWrapper(libVLC.getMeta(libvlc_meta_Artist), UnknownStringType.Artist);
+        mGenre = getValueWrapper(libVLC.getMeta(libvlc_meta_Genre), UnknownStringType.Genre);
+        mAlbum = getValueWrapper(libVLC.getMeta(libvlc_meta_Album), UnknownStringType.Album);
+        mNowPlaying = libVLC.getMeta(libvlc_meta_NowPlaying);
+        mArtworkURL = libVLC.getMeta(libvlc_meta_ArtworkURL);
     }
 
     public String getFileName() {
@@ -326,7 +360,7 @@ public class Media implements Comparable<Media> {
      * Returns the raw picture object. Likely to be NULL in VLC for Android
      * due to lazy-loading.
      *
-     * Use {@link org.videolan.vlc.Util#getPictureFromCache(Media)} instead.
+     * Use {@link org.videolan.vlc.util.Bitmap#getPictureFromCache(Media)} instead.
      *
      * @return The raw picture or NULL
      */
@@ -337,7 +371,7 @@ public class Media implements Comparable<Media> {
     /**
      * Sets the raw picture object.
      *
-     * In VLC for Android, use {@link org.videolan.vlc.Util#setPicture(Context, Media, Bitmap)} instead.
+     * In VLC for Android, use {@link org.videolan.vlc.MediaDatabase#setPicture(Media, Bitmap)} instead.
      *
      * @param p
      */
@@ -357,19 +391,30 @@ public class Media implements Comparable<Media> {
         if (mTitle != null && mType != TYPE_VIDEO)
             return mTitle;
         else {
-            int end = getFileName().lastIndexOf("");
+            String fileName = getFileName();
+            if (fileName == null)
+                return "";
+            int end = fileName.lastIndexOf(".");
             if (end <= 0)
-                return getFileName();
-            return getFileName().substring(0, end);
+                return fileName;
+            return fileName.substring(0, end);
         }
     }
 
     public String getSubtitle() {
-        return mType != TYPE_VIDEO ? mArtist + " - " + mAlbum : "";
+        return mType != TYPE_VIDEO ?
+                mNowPlaying != null ?
+                        mNowPlaying
+                        : mArtist + " - " + mAlbum
+                : "";
     }
 
     public String getArtist() {
         return mArtist;
+    }
+
+    public Boolean isArtistUnknown() {
+        return (mArtist.equals(getValueWrapper(null, UnknownStringType.Artist)));
     }
 
     public String getGenre() {
@@ -389,7 +434,11 @@ public class Media implements Comparable<Media> {
         return mAlbum;
     }
 
-    public String getTrackNumber() {
+    public Boolean isAlbumUnknown() {
+        return (mAlbum.equals(getValueWrapper(null, UnknownStringType.Album)));
+    }
+
+    public int getTrackNumber() {
         return mTrackNumber;
     }
 
