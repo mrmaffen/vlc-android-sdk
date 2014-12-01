@@ -3,24 +3,24 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.9.1'
+        classpath 'com.android.tools.build:gradle:1.0.0-rc1'
         classpath 'org.ajoberstar:gradle-git:0.8.0'
     }
 }
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 android {
-    compileSdkVersion 19
-    buildToolsVersion '19.0.3'
+    compileSdkVersion 21
+    buildToolsVersion '21.1.0'
 
     defaultConfig {
         minSdkVersion 9
-        targetSdkVersion 19
+        targetSdkVersion 21
         versionCode 1
         versionName "1.0"
     }
     buildTypes {
         release {
-            runProguard false
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
@@ -57,10 +57,15 @@ task buildVlc(type: Exec, dependsOn: 'updateVlcCheckout') {
     commandLine './compile.sh'
 }
 
-task updateVlc(type: Copy, dependsOn: 'buildVlc') {
-    from ('vlc-android-' + project.ext.androidAbi + '/vlc-android/libs/' + project.ext.androidAbi + '/libvlcjni.so')
-    into ('src/main/jniLibs/' + project.ext.androidAbi)
+task copyJniLibs(type: Copy, dependsOn: 'buildVlc') {
+    from ('vlc-android-' + project.ext.androidAbi + '/libvlc/libs/')
+    into ('src/main/jniLibs/')
+}
+
+task updateVlc(type: Copy, dependsOn: 'copyJniLibs') {
+    from ('vlc-android-' + project.ext.androidAbi + '/libvlc/src/')
+    into ('src/main/java/')
 }
 
 //upload aar to maven central with sonatype
-apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/eaa6b5404b7594e6c23b884fdc5795f545db55dd/gradle-mvn-push.gradle'
+apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/8cfffbbff6b9094af1c92318ea5d5a5bb0b8bb30/gradle-mvn-push.gradle'
