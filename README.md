@@ -10,7 +10,7 @@ Get it via Maven Central
 Just add this dependency to your project and you're good to go.
 
 <pre>dependencies {
-    compile "de.mrmaffen:vlc-android-sdk:1.0.5"</br>
+    compile "de.mrmaffen:vlc-android-sdk:1.0.5"
 }</pre>
 
 Building libvlcjni.so yourself
