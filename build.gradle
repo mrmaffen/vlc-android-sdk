@@ -58,7 +58,7 @@ task buildVlc(type: Exec, dependsOn: 'updateVlcCheckout') {
 }
 
 task copyJniLibs(type: Copy, dependsOn: 'buildVlc') {
-    from ('vlc-android-' + project.ext.androidAbi + '/libvlc/libs/')
+    from ('vlc-android-' + project.ext.androidAbi + '/libvlc/jni/libs/')
     into ('src/main/jniLibs/')
 }
 

@@ -100,4 +100,4 @@ bin-release/
 .Trashes
 
 # VLC sources
-/vlc-android-*
+/vlc*
