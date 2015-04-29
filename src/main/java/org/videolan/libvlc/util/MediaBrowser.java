@@ -20,16 +20,14 @@
 
 package org.videolan.libvlc.util;
 
-import android.os.Build;
-
-import java.util.ArrayList;
-
-import org.videolan.BuildConfig;
+import org.videolan.libvlc.BuildConfig;
 import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.Media;
 import org.videolan.libvlc.MediaDiscoverer;
 import org.videolan.libvlc.MediaList;
 import org.videolan.libvlc.VLCObject;
+
+import java.util.ArrayList;
 
 public class MediaBrowser {
     private static final String TAG = "LibVLC/util/MediaBrowser";
