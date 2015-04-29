@@ -1,8 +1,7 @@
 /*****************************************************************************
  * MediaList.java
  *****************************************************************************
- * Copyright © 2013 VLC authors and VideoLAN
- * Copyright © 2013 Edward Wang
+ * Copyright © 2015 VLC authors, VideoLAN and VideoLabs
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,217 +17,148 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
+
 package org.videolan.libvlc;
 
-import java.util.ArrayList;
+import android.util.SparseArray;
 
-import android.os.Bundle;
+public final class MediaList extends VLCObject {
+    private final static String TAG = "LibVLC/MediaList";
 
-/**
- * Java/JNI wrapper for the libvlc_media_list_t structure.
- */
-public class MediaList {
-    private static final String TAG = "VLC/LibVLC/MediaList";
+    public static class Event extends VLCObject.Event {
+        /**
+         * The media can be already released. If it's released, cached attributes are still
+         * available (like media.getMrl()).
+         * You should call {@link Media#retain()} and check the return value
+         * before calling media native methods.
+         */
+        public final Media media;
+        public final int index;
 
-    /* Since the libvlc_media_t is not created until the media plays, we have
-     * to cache them here. */
-    private static class MediaHolder {
-        Media m;
-        boolean noVideo; // default false
-        boolean noHardwareAcceleration; // default false
-
-        public MediaHolder(Media media) {
-            m = media; noVideo = false; noHardwareAcceleration = false;
-        }
-        public MediaHolder(Media m_, boolean noVideo_, boolean noHardwareAcceleration_) {
-            m = m_; noVideo = noVideo_; noHardwareAcceleration = noHardwareAcceleration_;
+        protected Event(int type, Media media, int index) {
+            super(type);
+            this.media = media;
+            this.index = index;
         }
     }
 
-    /* TODO: add locking */
-    private ArrayList<MediaHolder> mInternalList;
-    private LibVLC mLibVLC; // Used to create new objects that require a libvlc instance
-    private EventHandler mEventHandler;
+    private int mCount = 0;
+    private SparseArray<Media> mMediaArray = new SparseArray<Media>();
 
+    private void init() {
+        mCount = nativeGetCount();
+    }
+
+    /**
+     * Create a MediaList from libVLC
+     * @param libVLC
+     */
     public MediaList(LibVLC libVLC) {
-        mEventHandler = new EventHandler(); // used in init() below to fire events at the correct targets
-        mInternalList = new ArrayList<MediaHolder>();
-        mLibVLC = libVLC;
+        nativeNewFromLibVlc(libVLC);
+        init();
     }
 
     /**
-     * Adds a media URI to the media list.
      *
-     * @param mrl
-     *            The MRL to add. Must be a location and not a path.
-     *            {@link LibVLC#PathToURI(String)} can be used to convert a path
-     *            to a MRL.
+     * @param md Should not be released
      */
-    public void add(String mrl) {
-        add(new Media(mLibVLC, mrl));
-    }
-    public void add(Media media) {
-        add(media, false, false);
-    }
-    public void add(Media media, boolean noVideo) {
-        add(media, noVideo, false);
-    }
-    public void add(Media media, boolean noVideo, boolean noHardwareAcceleration) {
-        mInternalList.add(new MediaHolder(media, noVideo, noHardwareAcceleration));
-        signal_list_event(EventHandler.CustomMediaListItemAdded, mInternalList.size() - 1, media.getLocation());
+    protected MediaList(MediaDiscoverer md) {
+        if (md.isReleased())
+            throw new IllegalArgumentException("MediaDiscoverer is not native");
+        nativeNewFromMediaDiscoverer(md);
+        init();
     }
 
     /**
-     * Clear the media list. (remove all media)
-     */
-    public void clear() {
-        // Signal to observers of media being deleted.
-        for(int i = 0; i < mInternalList.size(); i++) {
-            signal_list_event(EventHandler.CustomMediaListItemDeleted, i, mInternalList.get(i).m.getLocation());
-        }
-        mInternalList.clear();
-    }
-
-    private boolean isValid(int position) {
-        return position >= 0 && position < mInternalList.size();
-    }
-
-    /**
-     * This function checks the currently playing media for subitems at the given
-     * position, and if any exist, it will expand them at the same position
-     * and replace the current media.
      *
-     * @param position The position to expand
-     * @return -1 if no subitems were found, 0 if subitems were expanded
+     * @param m Should not be released
      */
-    public int expandMedia(int position) {
-        ArrayList<String> children = new ArrayList<String>();
-        int ret = mLibVLC.expandMedia(position, children);
-        if(ret == 0) {
-            mEventHandler.callback(EventHandler.CustomMediaListExpanding, new Bundle());
-            this.remove(position);
-            for(String mrl : children) {
-                this.insert(position, mrl);
-            }
-            mEventHandler.callback(EventHandler.CustomMediaListExpandingEnd, new Bundle());
+    protected MediaList(Media m) {
+        if (m.isReleased())
+            throw new IllegalArgumentException("Media is not native");
+        nativeNewFromMedia(m);
+        init();
+    }
+
+    private synchronized Media insertMedia(int index) {
+        mCount++;
+
+        for (int i = mCount - 1; i >= index; --i)
+            mMediaArray.put(i + 1, mMediaArray.valueAt(i));
+        final Media media = new Media(this, index);
+        mMediaArray.put(index, media);
+        return media;
+    }
+
+    private synchronized Media removeMedia(int index) {
+        mCount--;
+        final Media media = mMediaArray.get(index);
+        if (media != null)
+            media.release();
+        for (int i = index; i < mCount; ++i) {
+            mMediaArray.put(i, mMediaArray.valueAt(i + 1));
         }
-        return ret;
-    }
-
-    public void loadPlaylist(String mrl) {
-        ArrayList<String> items = new ArrayList<String>();
-        mLibVLC.loadPlaylist(mrl, items);
-        this.clear();
-        for(String item : items) {
-            this.add(item);
-        }
-    }
-
-    public void insert(int position, String mrl) {
-        insert(position, new Media(mLibVLC, mrl));
-    }
-    public void insert(int position, Media media) {
-        mInternalList.add(position, new MediaHolder(media));
-        signal_list_event(EventHandler.CustomMediaListItemAdded, position, media.getLocation());
-    }
-
-    /**
-     * Move a media from one position to another
-     *
-     * @param startPosition start position
-     * @param endPosition end position
-     * @throws IndexOutOfBoundsException
-     */
-    public void move(int startPosition, int endPosition) {
-        if (!(isValid(startPosition)
-              && endPosition >= 0 && endPosition <= mInternalList.size()))
-            throw new IndexOutOfBoundsException("Indexes out of range");
-
-        MediaHolder toMove = mInternalList.get(startPosition);
-        mInternalList.remove(startPosition);
-        if (startPosition >= endPosition)
-            mInternalList.add(endPosition, toMove);
-        else
-            mInternalList.add(endPosition - 1, toMove);
-        Bundle b = new Bundle();
-        b.putInt("index_before", startPosition);
-        b.putInt("index_after", endPosition);
-        mEventHandler.callback(EventHandler.CustomMediaListItemMoved, b);
-    }
-
-    public void remove(int position) {
-        if (!isValid(position))
-            return;
-        String uri = mInternalList.get(position).m.getLocation();
-        mInternalList.remove(position);
-        signal_list_event(EventHandler.CustomMediaListItemDeleted, position, uri);
-    }
-
-    public void remove(String location) {
-        for (int i = 0; i < mInternalList.size(); ++i) {
-            String uri = mInternalList.get(i).m.getLocation();
-            if (uri.equals(location)) {
-                mInternalList.remove(i);
-                signal_list_event(EventHandler.CustomMediaListItemDeleted, i, uri);
-                i--;
-            }
-        }
-    }
-
-    public int size() {
-        return mInternalList.size();
-    }
-
-    public Media getMedia(int position) {
-        if (!isValid(position))
-            return null;
-        return mInternalList.get(position).m;
-    }
-
-    /**
-     * @param position The index of the media in the list
-     * @return null if not found
-     */
-    public String getMRL(int position) {
-        if (!isValid(position))
-            return null;
-        return mInternalList.get(position).m.getLocation();
-    }
-
-    public String[] getMediaOptions(int position) {
-        boolean noHardwareAcceleration = false;
-        boolean noVideo = false;
-        if (isValid(position))
-        {
-            noHardwareAcceleration = mInternalList.get(position).noHardwareAcceleration;
-            noVideo = mInternalList.get(position).noVideo;
-        }
-
-        return mLibVLC.getMediaOptions(noHardwareAcceleration, noVideo);
-    }
-
-    public EventHandler getEventHandler() {
-        return mEventHandler;
+        return media;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("LibVLC Media List: {");
-        for(int i = 0; i < size(); i++) {
-            sb.append(((Integer)i).toString());
-            sb.append(": ");
-            sb.append(getMRL(i));
-            sb.append(", ");
+    protected synchronized Event onEventNative(int eventType, long arg1, long arg2) {
+        int index = -1;
+        switch (eventType) {
+        case Events.MediaListItemAdded:
+            index = (int) arg1;
+            if (index != -1) {
+                final Media media = insertMedia(index);
+                return new Event(eventType, media, index);
+            } else
+                return null;
+        case Events.MediaListItemDeleted:
+            index = (int) arg1;
+            if (index != -1) {
+                final Media media = removeMedia(index);
+                return new Event(eventType, media, index);
+            } else
+                return null;
+        case Events.MediaListEndReached:
+            return new Event(eventType, null, -1);
         }
-        sb.append("}");
-        return sb.toString();
+        return null;
     }
 
-    private void signal_list_event(int event, int position, String uri) {
-        Bundle b = new Bundle();
-        b.putString("item_uri", uri);
-        b.putInt("item_index", position);
-        mEventHandler.callback(event, b);
+    /**
+     * Get the number of Media.
+     */
+    public synchronized int getCount() {
+        return mCount;
     }
+
+    /**
+     * Get a Media at specified index.
+     *
+     * @param index
+     * @return Media hold by MediaList, Should NOT be released.
+     */
+    public synchronized Media getMediaAt(int index) {
+        if (index < 0 || index > getCount())
+            return null;
+        return mMediaArray.get(index);
+    }
+
+    @Override
+    public void onReleaseNative() {
+        for (int i = 0; i < mMediaArray.size(); ++i) {
+            final Media media = mMediaArray.get(i);
+            if (media != null)
+                media.release();
+        }
+
+        nativeRelease();
+    }
+
+    /* JNI */
+    private native void nativeNewFromLibVlc(LibVLC libvlc);
+    private native void nativeNewFromMediaDiscoverer(MediaDiscoverer md);
+    private native void nativeNewFromMedia(Media m);
+    private native void nativeRelease();
+    private native int nativeGetCount();
 }

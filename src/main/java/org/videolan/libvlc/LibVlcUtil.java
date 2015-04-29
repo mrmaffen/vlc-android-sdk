@@ -129,10 +129,10 @@ public class LibVlcUtil {
         final boolean elfHasMips = elf.e_machine == EM_MIPS;
         final boolean elfIs64bits = elf.is64bits;
 
-        Log.i(TAG, "machine = " + (elfHasArm ? "arm" : elfHasX86 ? "x86" : "mips") + ", " +
+        Log.i(TAG, "ELF ABI = " + (elfHasArm ? "arm" : elfHasX86 ? "x86" : "mips") + ", " +
                                   (elfIs64bits ? "64bits" : "32bits"));
-        Log.i(TAG, "arch = " + elf.att_arch);
-        Log.i(TAG, "fpu = " + elf.att_fpu);
+        Log.i(TAG, "ELF arch = " + elf.att_arch);
+        Log.i(TAG, "ELF fpu = " + elf.att_fpu);
         boolean hasNeon = false, hasFpu = false, hasArmV6 = false,
                 hasArmV7 = false, hasMips = false, hasX86 = false, is64bits = false;
         float bogoMIPS = -1;
@@ -159,10 +159,11 @@ public class LibVlcUtil {
             hasArmV7 = true;
             is64bits = true;
         }
-
+        FileReader fileReader = null;
+        BufferedReader br = null;
         try {
-            FileReader fileReader = new FileReader("/proc/cpuinfo");
-            BufferedReader br = new BufferedReader(fileReader);
+            fileReader = new FileReader("/proc/cpuinfo");
+            br = new BufferedReader(fileReader);
             String line;
             while((line = br.readLine()) != null) {
                 if(!hasArmV7 && line.contains("AArch64")) {
@@ -200,12 +201,22 @@ public class LibVlcUtil {
                     }
                 }
             }
-            fileReader.close();
         } catch(IOException ex){
             ex.printStackTrace();
             errorMsg = "IOException whilst reading cpuinfo flags";
             isCompatible = false;
             return false;
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                } catch (IOException e) {}
+            }
+            if (fileReader != null) {
+                try {
+                    fileReader.close();
+                } catch (IOException e) {}
+            }
         }
         if(processors == 0)
             processors = 1; // possibly borked cpuinfo?
@@ -253,20 +264,31 @@ public class LibVlcUtil {
         }
 
         float frequency = -1;
+        fileReader = null;
+        br = null;
+        String line = "";
         try {
-            FileReader fileReader = new FileReader("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            BufferedReader br = new BufferedReader(fileReader);
-            String line = "";
-            try {
-                line = br.readLine();
+            fileReader = new FileReader("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            br = new BufferedReader(fileReader);
+            line = br.readLine();
+            if (line != null)
                 frequency = Float.parseFloat(line) / 1000.f; /* Convert to MHz */
-            } catch(NumberFormatException e) {
-                Log.w(TAG, "Could not parse maximum CPU frequency!");
-                Log.w(TAG, "Failed to parse: " + line);
-            }
-            fileReader.close();
         } catch(IOException ex) {
             Log.w(TAG, "Could not find maximum CPU frequency!");
+        } catch(NumberFormatException e) {
+            Log.w(TAG, "Could not parse maximum CPU frequency!");
+            Log.w(TAG, "Failed to parse: " + line);
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                } catch (IOException e) {}
+            }
+            if (fileReader != null) {
+                try {
+                    fileReader.close();
+                } catch (IOException e) {}
+            }
         }
 
         errorMsg = null;

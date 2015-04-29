@@ -1,7 +1,7 @@
 /*****************************************************************************
  * Media.java
  *****************************************************************************
- * Copyright © 2011-2013 VLC authors and VideoLAN
+ * Copyright © 2015 VLC authors, VideoLAN and VideoLabs
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -20,461 +20,424 @@
 
 package org.videolan.libvlc;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.HashSet;
-import java.util.Locale;
-
-import android.graphics.Bitmap;
-import android.util.Log;
-
-public class Media implements Comparable<Media> {
-    public final static String TAG = "VLC/LibVLC/Media";
-
-    public final static HashSet<String> VIDEO_EXTENSIONS;
-    public final static HashSet<String> AUDIO_EXTENSIONS;
-    public final static String EXTENSIONS_REGEX;
-    public final static HashSet<String> FOLDER_BLACKLIST;
-
-    static {
-        String[] video_extensions = {
-                ".3g2", ".3gp", ".3gp2", ".3gpp", ".amv", ".asf", ".avi", ".divx", ".drc", ".dv",
-                ".f4v", ".flv", ".gvi", ".gxf", ".ismv", ".iso", ".m1v", ".m2v", ".m2t", ".m2ts",
-                ".m4v", ".mkv", ".mov", ".mp2", ".mp2v", ".mp4", ".mp4v", ".mpe", ".mpeg",
-                ".mpeg1", ".mpeg2", ".mpeg4", ".mpg", ".mpv2", ".mts", ".mtv", ".mxf", ".mxg",
-                ".nsv", ".nut", ".nuv", ".ogm", ".ogv", ".ogx", ".ps", ".rec", ".rm", ".rmvb",
-                ".tod", ".ts", ".tts", ".vob", ".vro", ".webm", ".wm", ".wmv", ".wtv", ".xesc" };
-
-        String[] audio_extensions = {
-                ".3ga", ".a52", ".aac", ".ac3", ".adt", ".adts", ".aif", ".aifc", ".aiff", ".amr",
-                ".aob", ".ape", ".awb", ".caf", ".dts", ".flac", ".it", ".m4a", ".m4b", ".m4p",
-                ".mid", ".mka", ".mlp", ".mod", ".mpa", ".mp1", ".mp2", ".mp3", ".mpc", ".mpga",
-                ".oga", ".ogg", ".oma", ".opus", ".ra", ".ram", ".rmi", ".s3m", ".spx", ".tta",
-                ".voc", ".vqf", ".w64", ".wav", ".wma", ".wv", ".xa", ".xm" };
-
-        String[] folder_blacklist = {
-                "/alarms",
-                "/notifications",
-                "/ringtones",
-                "/media/alarms",
-                "/media/notifications",
-                "/media/ringtones",
-                "/media/audio/alarms",
-                "/media/audio/notifications",
-                "/media/audio/ringtones",
-                "/Android/data/" };
-
-        VIDEO_EXTENSIONS = new HashSet<String>();
-        for (String item : video_extensions)
-            VIDEO_EXTENSIONS.add(item);
-        AUDIO_EXTENSIONS = new HashSet<String>();
-        for (String item : audio_extensions)
-            AUDIO_EXTENSIONS.add(item);
-
-        StringBuilder sb = new StringBuilder(115);
-        sb.append(".+(\\.)((?i)(");
-        sb.append(video_extensions[0].substring(1));
-        for(int i = 1; i < video_extensions.length; i++) {
-            sb.append('|');
-            sb.append(video_extensions[i].substring(1));
-        }
-        for(int i = 0; i < audio_extensions.length; i++) {
-            sb.append('|');
-            sb.append(audio_extensions[i].substring(1));
-        }
-        sb.append("))");
-        EXTENSIONS_REGEX = sb.toString();
-        FOLDER_BLACKLIST = new HashSet<String>();
-        for (String item : folder_blacklist)
-            FOLDER_BLACKLIST.add(android.os.Environment.getExternalStorageDirectory().getPath() + item);
-    }
-
-    public final static int TYPE_ALL = -1;
-    public final static int TYPE_VIDEO = 0;
-    public final static int TYPE_AUDIO = 1;
-    public final static int TYPE_GROUP = 2;
-
-    /** Metadata from libvlc_media */
-    protected String mTitle;
-    private String mArtist;
-    private String mGenre;
-    private String mCopyright;
-    private String mAlbum;
-    private int mTrackNumber;
-    private String mDescription;
-    private String mRating;
-    private String mDate;
-    private String mSettings;
-    private String mNowPlaying;
-    private String mPublisher;
-    private String mEncodedBy;
-    private String mTrackID;
-    private String mArtworkURL;
-
-    public final static int libvlc_meta_Title       = 0;
-    public final static int libvlc_meta_Artist      = 1;
-    public final static int libvlc_meta_Genre       = 2;
-//    public final static int libvlc_meta_Copyright   = 3;
-    public final static int libvlc_meta_Album       = 4;
-//    public final static int libvlc_meta_TrackNumber = 5;
-//    public final static int libvlc_meta_Description = 6;
-//    public final static int libvlc_meta_Rating      = 7;
-//    public final static int libvlc_meta_Date        = 8;
-//    public final static int libvlc_meta_Setting     = 9;
-//    public final static int libvlc_meta_URL         = 10;
-//    public final static int libvlc_meta_Language    = 11;
-    public final static int libvlc_meta_NowPlaying  = 12;
-//    public final static int libvlc_meta_Publisher   = 13;
-//    public final static int libvlc_meta_EncodedBy   = 14;
-    public final static int libvlc_meta_ArtworkURL  = 15;
-//    public final static int libvlc_meta_TrackID     = 16;
-//    public final static int libvlc_meta_TrackTotal  = 17;
-//    public final static int libvlc_meta_Director    = 18;
-//    public final static int libvlc_meta_Season      = 19;
-//    public final static int libvlc_meta_Episode     = 20;
-//    public final static int libvlc_meta_ShowName    = 21;
-//    public final static int libvlc_meta_Actors      = 22;
-
-    private final String mLocation;
-    private String mFilename;
-    private long mTime = 0;
-    private int mAudioTrack = -1;
-    private int mSpuTrack = -2;
-    private long mLength = 0;
-    private int mType;
-    private int mWidth = 0;
-    private int mHeight = 0;
-    private Bitmap mPicture;
-    private boolean mIsPictureParsed;
+public final class Media extends VLCObject {
+    private final static String TAG = "LibVLC/Media";
 
     /**
-     * Create a new Media
-     * @param libVLC A pointer to the libVLC instance. Should not be NULL
-     * @param URI The URI of the media.
+     * libvlc_media_type_t
      */
-    public Media(LibVLC libVLC, String URI) {
-        if(libVLC == null)
-            throw new NullPointerException("libVLC was null");
-
-        mLocation = URI;
-
-        mType = TYPE_ALL;
-        TrackInfo[] tracks = libVLC.readTracksInfo(mLocation);
-
-        extractTrackInfo(tracks);
+    public static class Type {
+        public static final int Unknown = 0;
+        public static final int File = 1;
+        public static final int Directory = 2;
+        public static final int Disc = 3;
+        public static final int Stream = 4;
+        public static final int Playlist = 5;
     }
 
-    private void extractTrackInfo(TrackInfo[] tracks) {
-        if (tracks == null)
-            return;
-
-        for (TrackInfo track : tracks) {
-            if (track.Type == TrackInfo.TYPE_VIDEO) {
-                mType = TYPE_VIDEO;
-                mWidth = track.Width;
-                mHeight = track.Height;
-            } else if (mType == TYPE_ALL && track.Type == TrackInfo.TYPE_AUDIO){
-                mType = TYPE_AUDIO;
-            } else if (track.Type == TrackInfo.TYPE_META) {
-                mLength = track.Length;
-                mTitle = track.Title;
-                mArtist = getValueWrapper(track.Artist, UnknownStringType.Artist);
-                mAlbum = getValueWrapper(track.Album, UnknownStringType.Album);
-                mGenre = getValueWrapper(track.Genre, UnknownStringType.Genre);
-                mArtworkURL = track.ArtworkURL;
-                mNowPlaying = track.NowPlaying;
-                try {
-                    mTrackNumber = Integer.parseInt(track.TrackNumber);
-                } catch (NumberFormatException ignored) {
-                }
-                Log.d(TAG, "Title " + mTitle);
-                Log.d(TAG, "Artist " + mArtist);
-                Log.d(TAG, "Genre " + mGenre);
-                Log.d(TAG, "Album " + mAlbum);
-            }
-        }
-
-        /* No useful ES found */
-        if (mType == TYPE_ALL) {
-            int dotIndex = mLocation.lastIndexOf(".");
-            if (dotIndex != -1) {
-                String fileExt = mLocation.substring(dotIndex).toLowerCase(Locale.ENGLISH);
-                if( Media.VIDEO_EXTENSIONS.contains(fileExt) ) {
-                    mType = TYPE_VIDEO;
-                } else if (Media.AUDIO_EXTENSIONS.contains(fileExt)) {
-                    mType = TYPE_AUDIO;
-                }
-            }
-        }
-    }
-
-    public Media(String location, long time, long length, int type,
-            Bitmap picture, String title, String artist, String genre, String album,
-            int width, int height, String artworkURL, int audio, int spu, int trackNumber) {
-        mLocation = location;
-        mFilename = null;
-        mTime = time;
-        mAudioTrack = audio;
-        mSpuTrack = spu;
-        mLength = length;
-        mType = type;
-        mPicture = picture;
-        mWidth = width;
-        mHeight = height;
-
-        mTitle = title;
-        mArtist = getValueWrapper(artist, UnknownStringType.Artist);
-        mGenre = getValueWrapper(genre, UnknownStringType.Genre);
-        mAlbum = getValueWrapper(album, UnknownStringType.Album);
-        mArtworkURL = artworkURL;
-        mTrackNumber = trackNumber;
-    }
-
-    private enum UnknownStringType { Artist , Genre, Album };
     /**
-     * Uses introspection to read VLC l10n databases, so that we can sever the
-     * hard-coded dependency gracefully for 3rd party libvlc apps while still
-     * maintaining good l10n in VLC for Android.
+     * see libvlc_meta_t
+     */
+    public static class Meta {
+        public static final int Title = 0;
+        public static final int Artist = 1;
+        public static final int Genre = 2;
+        public static final int Copyright = 3;
+        public static final int Album = 4;
+        public static final int TrackNumber = 5;
+        public static final int Description = 6;
+        public static final int Rating = 7;
+        public static final int Date = 8;
+        public static final int Setting = 9;
+        public static final int URL = 10;
+        public static final int Language = 11;
+        public static final int NowPlaying = 12;
+        public static final int Publisher = 13;
+        public static final int EncodedBy = 14;
+        public static final int ArtworkURL = 15;
+        public static final int TrackID = 16;
+        public static final int TrackTotal = 17;
+        public static final int Director = 18;
+        public static final int Season = 19;
+        public static final int Episode = 20;
+        public static final int ShowName = 21;
+        public static final int Actors = 22;
+        public static final int AlbumArtist = 23;
+        public static final int DiscNumber = 24;
+        public static final int MAX = 25;
+    }
+
+    /**
+     * see libvlc_state_t
+     */
+    public static class State {
+        public static final int NothingSpecial = 0;
+        public static final int Opening = 1;
+        public static final int Buffering = 2;
+        public static final int Playing = 3;
+        public static final int Paused = 4;
+        public static final int Stopped = 5;
+        public static final int Ended = 6;
+        public static final int Error = 7;
+        public static final int MAX = 8;
+    }
+
+    /**
+     * see libvlc_media_parse_flag_t
+     */
+    public static class Parse {
+        public static final int ParseLocal   = 0;
+        public static final int ParseNetwork = 0x01;
+        public static final int FetchLocal   = 0x02;
+        public static final int FetchNetwork = 0x04;
+    }
+
+    /**
+     * see libvlc_media_track_t
+     */
+    public static abstract class Track {
+        public static class Type {
+            public static final int Unknown = -1;
+            public static final int Audio = 0;
+            public static final int Video = 1;
+            public static final int Text = 2;
+        }
+
+        public final int type;
+        public final String codec;
+        public final String originalCodec;
+        public final int id;
+        public final int profile;
+        public final int level;
+        public final int bitrate;
+        public final String language;
+        public final String description;
+
+        private Track(int type, String codec, String originalCodec, int id, int profile,
+                int level, int bitrate, String language, String description) {
+            this.type = type;
+            this.codec = codec;
+            this.originalCodec = originalCodec;
+            this.id = id;
+            this.profile = profile;
+            this.level = level;
+            this.bitrate = bitrate;
+            this.language = language;
+            this.description = description;
+        }
+    }
+
+    /**
+     * see libvlc_audio_track_t
+     */
+    public static class AudioTrack extends Track {
+        public final int channels;
+        public final int rate;
+
+        private AudioTrack(String codec, String originalCodec, int id, int profile,
+                int level, int bitrate, String language, String description,
+                int channels, int rate) {
+            super(Type.Audio, codec, originalCodec, id, profile, level, bitrate, language, description);
+            this.channels = channels;
+            this.rate = rate;
+        }
+    }
+
+    /* Used from JNI */
+    private static Track createAudioTrackFromNative(String codec, String originalCodec, int id, int profile,
+            int level, int bitrate, String language, String description,
+            int channels, int rate) {
+        return new AudioTrack(codec, originalCodec, id, profile,
+                level, bitrate, language, description,
+                channels, rate);
+    }
+
+    /**
+     * see libvlc_video_track_t
+     */
+    public static class VideoTrack extends Track {
+        public final int height;
+        public final int width;
+        public final int sarNum;
+        public final int sarDen;
+        public final int frameRateNum;
+        public final int frameRateDen;
+
+        private VideoTrack(String codec, String originalCodec, int id, int profile,
+                int level, int bitrate, String language, String description,
+                int height, int width, int sarNum, int sarDen, int frameRateNum, int frameRateDen) {
+            super(Type.Video, codec, originalCodec, id, profile, level, bitrate, language, description);
+            this.height = height;
+            this.width = width;
+            this.sarNum = sarNum;
+            this.sarDen = sarDen;
+            this.frameRateNum = frameRateNum;
+            this.frameRateDen = frameRateDen;
+        }
+    }
+
+    /* Used from JNI */
+    private static Track createVideoTrackFromNative(String codec, String originalCodec, int id, int profile,
+            int level, int bitrate, String language, String description,
+            int height, int width, int sarNum, int sarDen, int frameRateNum, int frameRateDen) {
+        return new VideoTrack(codec, originalCodec, id, profile,
+                level, bitrate, language, description,
+                height, width, sarNum, sarDen, frameRateNum, frameRateDen);
+    }
+
+    /**
+     * see libvlc_subtitle_track_t
+     */
+    public static class SubtitleTrack extends Track {
+        public final String encoding;
+
+        private SubtitleTrack(String codec, String originalCodec, int id, int profile,
+                int level, int bitrate, String language, String description,
+                String encoding) {
+            super(Type.Text, codec, originalCodec, id, profile, level, bitrate, language, description);
+            this.encoding = encoding;
+        }
+    }
+
+    /* Used from JNI */
+    private static Track createSubtitleTrackFromNative(String codec, String originalCodec, int id, int profile,
+            int level, int bitrate, String language, String description,
+            String encoding) {
+        return new SubtitleTrack(codec, originalCodec, id, profile,
+                level, bitrate, language, description,
+                encoding);
+    }
+
+    private static final int PARSE_STATUS_INIT = 0x00;
+    private static final int PARSE_STATUS_PARSING = 0x01;
+    private static final int PARSE_STATUS_PARSED = 0x02;
+
+    private String mMrl = null;
+    private MediaList mSubItems = null;
+    private int mParseStatus = PARSE_STATUS_INIT;
+    private String mNativeMetas[] = null;
+    private Track mNativeTracks[] = null;
+    private long mDuration;
+    private int mState = State.NothingSpecial;
+    private int mType = Type.Unknown;
+
+    /**
+     * Create a Media from libVLC and a mrl.
      *
-     * @see org.videolan.vlc.util.Util#getValue(String, int)
-     *
-     * @param string The default string
-     * @param type Alias for R.string.xxx
-     * @return The default string if not empty or string from introspection
+     * @param libVLC
+     * @param mrl
      */
-    private static String getValueWrapper(String string, UnknownStringType type) {
-        if(string != null && string.length() > 0) return string;
-
-        try {
-            Class<?> stringClass = Class.forName("org.videolan.vlc.R$string");
-            Class<?> utilClass = Class.forName("org.videolan.vlc.Util");
-
-            Integer value;
-            switch(type) {
-            case Album:
-                value = (Integer)stringClass.getField("unknown_album").get(null);
-                break;
-            case Genre:
-                value = (Integer)stringClass.getField("unknown_genre").get(null);
-                break;
-            case Artist:
-            default:
-                value = (Integer)stringClass.getField("unknown_artist").get(null);
-                break;
-            }
-
-            Method getValueMethod = utilClass.getDeclaredMethod("getValue", String.class, Integer.TYPE);
-            // Util.getValue(string, R.string.xxx);
-            return (String) getValueMethod.invoke(null, string, value);
-        } catch (ClassNotFoundException e) {
-        } catch (IllegalArgumentException e) {
-        } catch (IllegalAccessException e) {
-        } catch (NoSuchFieldException e) {
-        } catch (NoSuchMethodException e) {
-        } catch (InvocationTargetException e) {
-        }
-
-        // VLC for Android translations not available (custom app perhaps)
-        // Use hardcoded English phrases.
-        switch(type) {
-        case Album:
-            return "Unknown Album";
-        case Genre:
-            return "Unknown Genre";
-        case Artist:
-        default:
-            return "Unknown Artist";
-        }
+    public Media(LibVLC libVLC, String mrl) {
+        nativeNewFromMrl(libVLC, mrl);
+        mMrl = nativeGetMrl();
+        mType = nativeGetType();
     }
 
     /**
-     * Compare the filenames to sort items
+     *
+     * @param ml Should not be released
+     * @param index
      */
+    protected Media(MediaList ml, int index) {
+        if (ml.isReleased())
+            throw new IllegalArgumentException("MediaList is not native");
+        nativeNewFromMediaList(ml, index);
+        mMrl = nativeGetMrl();
+        mNativeMetas = nativeGetMetas();
+        mType = nativeGetType();
+    }
+
     @Override
-    public int compareTo(Media another) {
-        return mTitle.toUpperCase(Locale.getDefault()).compareTo(
-                another.getTitle().toUpperCase(Locale.getDefault()));
-    }
-
-    public String getLocation() {
-        return mLocation;
-    }
-
-    public void updateMeta(LibVLC libVLC) {
-        mTitle = libVLC.getMeta(libvlc_meta_Title);
-        mArtist = getValueWrapper(libVLC.getMeta(libvlc_meta_Artist), UnknownStringType.Artist);
-        mGenre = getValueWrapper(libVLC.getMeta(libvlc_meta_Genre), UnknownStringType.Genre);
-        mAlbum = getValueWrapper(libVLC.getMeta(libvlc_meta_Album), UnknownStringType.Album);
-        mNowPlaying = libVLC.getMeta(libvlc_meta_NowPlaying);
-        mArtworkURL = libVLC.getMeta(libvlc_meta_ArtworkURL);
-    }
-
-    public String getFileName() {
-        if (mFilename == null) {
-            mFilename = LibVlcUtil.URItoFileName(mLocation);
+    protected synchronized Event onEventNative(int eventType, long arg1, long arg2) {
+        switch (eventType) {
+        case VLCObject.Events.MediaMetaChanged:
+            int id = (int) arg1;
+            if (id >= 0 && id < Meta.MAX)
+                mNativeMetas[id] = nativeGetMeta(id);
+            break;
+        case VLCObject.Events.MediaDurationChanged:
+            mDuration = nativeGetDuration();
+            break;
+        case VLCObject.Events.MediaParsedChanged:
+            postParse();
+            break;
+        case VLCObject.Events.MediaStateChanged:
+            mState = nativeGetState();
+            break;
         }
-        return mFilename;
+        return new Event(eventType);
     }
 
-    public long getTime() {
-        return mTime;
+    /**
+     * Get the MRL associated with the Media.
+     */
+    public synchronized String getMrl() {
+        return mMrl;
     }
 
-    public void setTime(long time) {
-        mTime = time;
+    /**
+     * Get the duration of the media.
+     */
+    public synchronized long getDuration() {
+        return mDuration;
     }
 
-    public int getAudioTrack() {
-        return mAudioTrack;
+    /**
+     * Get the state of the media.
+     *
+     * @see State
+     */
+    public synchronized int getState() {
+        return mState;
     }
 
-    public void setAudioTrack(int track) {
-        mAudioTrack = track;
+    /**
+     * Get the subItems MediaList associated with the Media.
+     *
+     * @return subItems as a MediaList, Should NOT be released.
+     */
+    public synchronized MediaList subItems() {
+        if (mSubItems == null && !isReleased())
+            mSubItems = new MediaList(this);
+        return mSubItems;
     }
 
-    public int getSpuTrack() {
-        return mSpuTrack;
+    private synchronized void postParse() {
+        // fetch if native, parsed and not fetched
+        if (!isReleased() && (mParseStatus & PARSE_STATUS_PARSING) != 0
+                && (mParseStatus & PARSE_STATUS_PARSED) == 0) {
+            mParseStatus &= ~PARSE_STATUS_PARSING;
+            mParseStatus |= PARSE_STATUS_PARSED;
+            mNativeTracks = nativeGetTracks();
+            mNativeMetas = nativeGetMetas();
+            if (mNativeMetas != null && mNativeMetas.length != Meta.MAX)
+                throw new IllegalStateException("native metas size doesn't match");
+            mDuration = nativeGetDuration();
+            mState = nativeGetState();
+            mType = nativeGetType();
+        }
     }
 
-    public void setSpuTrack(int track) {
-        mSpuTrack = track;
+    /**
+     * Parse the media synchronously with a flag.
+     *
+     * @param flags see {@link Parse}
+     * @return true in case of success, false otherwise.
+     */
+    public synchronized boolean parse(int flags) {
+        if (!isReleased() && (mParseStatus & (PARSE_STATUS_PARSED|PARSE_STATUS_PARSING)) == 0) {
+            mParseStatus |= PARSE_STATUS_PARSING;
+            if (nativeParse(flags)) {
+                postParse();
+                return true;
+            }
+        }
+        return false;
     }
 
-    public long getLength() {
-        return mLength;
+    /**
+     * Parse the media and local art synchronously.
+     *
+     * @return true in case of success, false otherwise.
+     */
+    public synchronized boolean parse() {
+        return parse(Parse.FetchLocal);
     }
 
-    public int getType() {
+    /**
+     * Parse the media asynchronously with a flag.
+     *
+     * To track when this is over you can listen to {@link VLCObject.Events#MediaParsedChanged}
+     * event (only if this methods returned true).
+     *
+     * @param flags see {@link Parse}
+     * @return true in case of success, false otherwise.
+     */
+    public synchronized boolean parseAsync(int flags) {
+        if (!isReleased() && (mParseStatus & (PARSE_STATUS_PARSED|PARSE_STATUS_PARSING)) == 0) {
+            mParseStatus |= PARSE_STATUS_PARSING;
+            return nativeParseAsync(flags);
+        } else
+            return false;
+    }
+
+    /**
+     * Parse the media and local art asynchronously.
+     *
+     * @see #parseAsync(int)
+     */
+    public synchronized boolean parseAsync() {
+        return parseAsync(Parse.FetchLocal);
+    }
+
+    /**
+     * Returns true if the media is parsed
+     */
+    public synchronized boolean isParsed() {
+        return (mParseStatus & PARSE_STATUS_PARSED) != 0;
+    }
+
+    /**
+     * Get the type of the media
+     *
+     * @see {@link Type}
+     */
+    public synchronized int getType() {
         return mType;
     }
 
-    public int getWidth() {
-        return mWidth;
-    }
-
-    public int getHeight() {
-        return mHeight;
+    /**
+     * Get the Track count.
+     */
+    public synchronized int getTrackCount() {
+        return mNativeTracks != null ? mNativeTracks.length : 0;
     }
 
     /**
-     * Returns the raw picture object. Likely to be NULL in VLC for Android
-     * due to lazy-loading.
+     * Get a Track
+     * The Track can be casted to {@link AudioTrack}, {@link VideoTrack} or {@link SubtitleTrack} in function of the {@link Track.Type}.
      *
-     * Use {@link org.videolan.vlc.util.Bitmap#getPictureFromCache(Media)} instead.
-     *
-     * @return The raw picture or NULL
+     * @param idx
+     * @return Track or null if not idx is not valid
+     * @see #getTrackCount()
      */
-    public Bitmap getPicture() {
-        return mPicture;
+    public synchronized Track getTrack(int idx) {
+        if (mNativeTracks == null || idx < 0 || idx >= mNativeTracks.length)
+            return null;
+        return mNativeTracks[idx];
     }
 
     /**
-     * Sets the raw picture object.
+     * Get a Meta.
      *
-     * In VLC for Android, use {@link org.videolan.vlc.MediaDatabase#setPicture(Media, Bitmap)} instead.
-     *
-     * @param p
+     * @param id see {@link Meta}
+     * @return meta or null if not found
      */
-    public void setPicture(Bitmap p) {
-        mPicture = p;
+    public synchronized String getMeta(int id) {
+        if (id < 0 || id >= Meta.MAX)
+            return null;
+
+        return mNativeMetas != null ? mNativeMetas[id] : null;
     }
 
-    public boolean isPictureParsed() {
-        return mIsPictureParsed;
+    @Override
+    protected void onReleaseNative() {
+        if (mSubItems != null)
+            mSubItems.release();
+        nativeRelease();
     }
 
-    public void setPictureParsed(boolean isParsed) {
-        mIsPictureParsed = isParsed;
-    }
-
-    public String getTitle() {
-        if (mTitle != null && mType != TYPE_VIDEO)
-            return mTitle;
-        else {
-            String fileName = getFileName();
-            if (fileName == null)
-                return "";
-            int end = fileName.lastIndexOf(".");
-            if (end <= 0)
-                return fileName;
-            return fileName.substring(0, end);
-        }
-    }
-
-    public String getSubtitle() {
-        return mType != TYPE_VIDEO ?
-                mNowPlaying != null ?
-                        mNowPlaying
-                        : mArtist + " - " + mAlbum
-                : "";
-    }
-
-    public String getArtist() {
-        return mArtist;
-    }
-
-    public Boolean isArtistUnknown() {
-        return (mArtist.equals(getValueWrapper(null, UnknownStringType.Artist)));
-    }
-
-    public String getGenre() {
-        if(getValueWrapper(null, UnknownStringType.Genre).equals(mGenre))
-            return mGenre;
-        else if( mGenre.length() > 1)/* Make genres case insensitive via normalisation */
-            return Character.toUpperCase(mGenre.charAt(0)) + mGenre.substring(1).toLowerCase(Locale.getDefault());
-        else
-            return mGenre;
-    }
-
-    public String getCopyright() {
-        return mCopyright;
-    }
-
-    public String getAlbum() {
-        return mAlbum;
-    }
-
-    public Boolean isAlbumUnknown() {
-        return (mAlbum.equals(getValueWrapper(null, UnknownStringType.Album)));
-    }
-
-    public int getTrackNumber() {
-        return mTrackNumber;
-    }
-
-    public String getDescription() {
-        return mDescription;
-    }
-
-    public String getRating() {
-        return mRating;
-    }
-
-    public String getDate() {
-        return mDate;
-    }
-
-    public String getSettings() {
-        return mSettings;
-    }
-
-    public String getNowPlaying() {
-        return mNowPlaying;
-    }
-
-    public String getPublisher() {
-        return mPublisher;
-    }
-
-    public String getEncodedBy() {
-        return mEncodedBy;
-    }
-
-    public String getTrackID() {
-        return mTrackID;
-    }
-
-    public String getArtworkURL() {
-        return mArtworkURL;
-    }
+    /* JNI */
+    private native void nativeNewFromMrl(LibVLC libVLC, String mrl);
+    private native void nativeNewFromMediaList(MediaList ml, int index);
+    private native void nativeRelease();
+    private native boolean nativeParseAsync(int flags);
+    private native boolean nativeParse(int flags);
+    private native String nativeGetMrl();
+    private native int nativeGetState();
+    private native String nativeGetMeta(int id);
+    private native String[] nativeGetMetas();
+    private native Track[] nativeGetTracks();
+    private native long nativeGetDuration();
+    private native int nativeGetType();
 }

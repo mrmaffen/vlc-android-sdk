@@ -32,14 +32,30 @@ public class HWDecoderUtil {
         UNKNOWN, NONE, OMX, MEDIACODEC, ALL
     }
 
+    public enum AudioOutput {
+        OPENSLES, AUDIOTRACK, ALL
+    }
+
     private static class DecoderBySOC {
         public final String key;
+        public final String value;
         public final Decoder dec;
-        public final String[] list;
-        public DecoderBySOC(String key, Decoder dec, String[] list) {
+        public DecoderBySOC(String key, String value, Decoder dec) {
             this.key = key;
+            this.value = value;
             this.dec = dec;
-            this.list = list;
+        }
+    }
+
+    private static class AudioOutputBySOC {
+        public final String key;
+        public final String value;
+        public final AudioOutput aout;
+
+        public AudioOutputBySOC(String key, String value, AudioOutput aout) {
+            this.key = key;
+            this.value = value;
+            this.aout = aout;
         }
     }
 
@@ -48,42 +64,46 @@ public class HWDecoderUtil {
          *  Put first devices you want to blacklist
          *  because theses devices can match the next rules.
          */
-        new DecoderBySOC ("ro.product.brand", Decoder.NONE, new  String[] {
-                "SEMC",             // Xperia S
-        }),
-        new DecoderBySOC ("ro.board.platform", Decoder.NONE, new  String[] {
-                "msm7627",          // QCOM S1
-        }),
+        new DecoderBySOC("ro.product.brand", "SEMC", Decoder.NONE), // Xperia S
+        new DecoderBySOC("ro.board.platform", "msm7627", Decoder.NONE), // QCOM S1
+
         /*
          * Devices working on OMX
          */
-        new DecoderBySOC ("ro.board.platform", Decoder.OMX, new  String[] {
-                "omap3",            // Omap 3
-                "rockchip", "rk29", // Rockchip RK29
-                "msm7630",          // QCOM S2
-                "s5pc",             // Exynos 3
-                "montblanc",        // Montblanc
-                "exdroid",          // Allwinner A31
-        }),
-        new DecoderBySOC ("ro.hardware", Decoder.OMX, new  String[] {
-                "sun6i",            // Allwinner A31
-        }),
+        new DecoderBySOC("ro.board.platform", "omap3", Decoder.OMX), // Omap 3
+        new DecoderBySOC("ro.board.platform", "rockchip", Decoder.OMX), // Rockchip RK29
+        new DecoderBySOC("ro.board.platform", "rk29", Decoder.OMX), // Rockchip RK29
+        new DecoderBySOC("ro.board.platform", "msm7630", Decoder.OMX), // QCOM S2
+        new DecoderBySOC("ro.board.platform", "s5pc", Decoder.OMX), // Exynos 3
+        new DecoderBySOC("ro.board.platform",  "montblanc", Decoder.OMX), // Montblanc
+        new DecoderBySOC("ro.board.platform", "exdroid", Decoder.OMX), // Allwinner A31
+        new DecoderBySOC("ro.board.platform", "sun6i", Decoder.OMX), // Allwinner A31
+
+        /*
+         * Devices working only on Mediacodec
+         */
+        new DecoderBySOC("ro.board.platform", "exynos4", Decoder.MEDIACODEC), // Exynos 4 (Samsung Galaxy S2/S3)
+
         /*
          * Devices working on Mediacodec and OMX
          */
-        new DecoderBySOC ("ro.board.platform", Decoder.ALL, new  String[] {
-                "omap4",            // Omap 4
-                "tegra",            // Tegra 2 & 3
-                "tegra3",           // Tegra 3
-                "msm8660",          // QCOM S3
-                "exynos4",          // Exynos 4 (Samsung Galaxy S2/S3)
-                "exynos5",          // Exynos 5 (Samsung Galaxy S4)
-                "rk30", "rk31",     // Rockchip RK3*
-                "mv88de3100",       // Marvell ARMADA 1500
-        }),
-        new DecoderBySOC ("ro.hardware", Decoder.ALL, new  String[] {
-                "mt65", "mt83",     // MTK
-        }),
+        new DecoderBySOC("ro.board.platform", "omap4", Decoder.ALL), // Omap 4
+        new DecoderBySOC("ro.board.platform", "tegra", Decoder.ALL), // Tegra 2 & 3
+        new DecoderBySOC("ro.board.platform", "tegra3", Decoder.ALL), // Tegra 3
+        new DecoderBySOC("ro.board.platform", "msm8660", Decoder.ALL), // QCOM S3
+        new DecoderBySOC("ro.board.platform", "exynos5", Decoder.ALL), // Exynos 5 (Samsung Galaxy S4)
+        new DecoderBySOC("ro.board.platform", "rk30", Decoder.ALL), // Rockchip RK30
+        new DecoderBySOC("ro.board.platform", "rk31", Decoder.ALL), // Rockchip RK31
+        new DecoderBySOC("ro.board.platform", "mv88de3100", Decoder.ALL), // Marvell ARMADA 1500
+
+        new DecoderBySOC("ro.hardware", "mt65", Decoder.ALL), //MTK
+        new DecoderBySOC("ro.hardware", "mt83", Decoder.ALL), //MTK
+    };
+
+    private static final AudioOutputBySOC[] sAudioOutputBySOCList = new AudioOutputBySOC[] {
+        /* getPlaybackHeadPosition returns an invalid position on Fire OS,
+         * thus Audiotrack is not usable */
+        new AudioOutputBySOC("ro.product.brand", "Amazon", AudioOutput.OPENSLES),
     };
 
     private static final HashMap<String, String> sSystemPropertyMap = new HashMap<String, String>();
@@ -93,21 +113,51 @@ public class HWDecoderUtil {
      * (Always return Dec.ALL after Android 4.3)
      */
     public static Decoder getDecoderFromDevice() {
+        /*
+         * Always try MediaCodec after JellyBean MR2,
+         * Try OMX or MediaCodec after HoneyComb depending on device properties.
+         * Otherwise, use software decoder by default.
+         */
         if (LibVlcUtil.isJellyBeanMR2OrLater())
             return Decoder.ALL;
-        for (DecoderBySOC decBySOC : sDecoderBySOCList) {
-            String prop = sSystemPropertyMap.get(decBySOC.key);
-            if (prop == null) {
-                prop = getSystemProperty(decBySOC.key, "none");
-                sSystemPropertyMap.put(decBySOC.key, prop);
-            }
-            if (prop != null) {
-                for (String decProp: decBySOC.list)
-                    if (prop.contains(decProp))
+        else if (LibVlcUtil.isHoneycombOrLater()) {
+            for (DecoderBySOC decBySOC : sDecoderBySOCList) {
+                final String prop = getSystemPropertyCached(decBySOC.key);
+                if (prop != null) {
+                    if (prop.contains(decBySOC.value))
                         return decBySOC.dec;
+                }
             }
         }
         return Decoder.UNKNOWN;
+    }
+
+    /**
+     * @return the audio output known to work for the running device
+     * (By default, returns ALL, i.e AudioTrack + OpenSles)
+     */
+    public static AudioOutput getAudioOutputFromDevice() {
+        if (!LibVlcUtil.isGingerbreadOrLater()) {
+            return AudioOutput.AUDIOTRACK;
+        } else {
+            for (AudioOutputBySOC aoutBySOC : sAudioOutputBySOCList) {
+                final String prop = getSystemPropertyCached(aoutBySOC.key);
+                if (prop != null) {
+                    if (prop.contains(aoutBySOC.value))
+                        return aoutBySOC.aout;
+                }
+            }
+            return AudioOutput.ALL;
+        }
+    }
+
+    private static String getSystemPropertyCached(String key) {
+        String prop = sSystemPropertyMap.get(key);
+        if (prop == null) {
+            prop = getSystemProperty(key, "none");
+            sSystemPropertyMap.put(key, prop);
+        }
+        return prop;
     }
 
     private static String getSystemProperty(String key, String def) {
