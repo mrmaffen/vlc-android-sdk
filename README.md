@@ -1,12 +1,20 @@
 vlc-android-sdk
 ===============
 
-VLC Android SDK with rtmp support and stripped away plugins to optimize size. Primarily used in project tomahawk-android.
+VLC Android SDK pushed to Maven Central. Primarily used in project tomahawk-android.
 
 https://github.com/tomahawk-player/tomahawk-android
 
-Building libvlcjni.so
----------------------
+Get it via Maven Central
+------------------------
+Just add this dependency to your project and you're good to go.
+
+<pre>dependencies {
+    compile "de.mrmaffen:vlc-android-sdk:1.0.5"</br>
+}</pre>
+
+Building libvlcjni.so yourself
+------------------------------
 
 To build a fresh version of libvlcjni.so, please follow these steps:
 
