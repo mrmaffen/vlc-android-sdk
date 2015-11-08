@@ -20,14 +20,28 @@
 
 package org.videolan.libvlc;
 
-public final class MediaDiscoverer extends VLCObject {
+@SuppressWarnings("unused")
+public class MediaDiscoverer extends VLCObject<MediaDiscoverer.Event> {
     private final static String TAG = "LibVLC/MediaDiscoverer";
-    private MediaList mMediaList;
+
+    public static class Event extends VLCEvent {
+
+        public static final int Started = 0x500;
+        public static final int Ended   = 0x501;
+
+        protected Event(int type) {
+            super(type);
+        }
+    }
+
+    public interface EventListener extends VLCEvent.Listener<MediaDiscoverer.Event> {}
+
+    private MediaList mMediaList = null;
 
     /**
      * Create a MediaDiscover.
      *
-     * @param libVLC
+     * @param libVLC a valid LibVLC
      * @param name Name of the vlc service discovery ("dsm", "upnp", "bonjour"...).
      */
     public MediaDiscoverer(LibVLC libVLC, String name) {
@@ -35,40 +49,59 @@ public final class MediaDiscoverer extends VLCObject {
     }
 
     /**
-     * Starts the discovery.
+     * Starts the discovery. This MediaDiscoverer should be alive (not released).
      *
-     * @return true the serive is started
+     * @return true the service is started
      */
     public boolean start() {
-        if (!isReleased())
-            return nativeStart();
-        else
-            return false;
+        if (isReleased())
+            throw new IllegalStateException("MediaDiscoverer is released");
+        return nativeStart();
     }
 
     /**
-     * Stops the discovery.
+     * Stops the discovery. This MediaDiscoverer should be alive (not released).
      * (You can also call {@link #release() to stop the discovery directly}.
      */
     public void stop() {
-        if (!isReleased())
-            nativeStop();
+        if (isReleased())
+            throw new IllegalStateException("MediaDiscoverer is released");
+        nativeStop();
+    }
+
+    public void setEventListener(EventListener listener) {
+        super.setEventListener(listener);
     }
 
     @Override
-    protected Event onEventNative(int event, long arg1, long arg2) {
+    protected Event onEventNative(int eventType, long arg1, float arg2) {
+        switch (eventType) {
+            case Event.Started:
+            case Event.Ended:
+                return new Event(eventType);
+        }
         return null;
     }
 
     /**
      * Get the MediaList associated with the MediaDiscoverer.
+     * This MediaDiscoverer should be alive (not released).
      *
-     * @return MediaList, Should NOT be released.
+     * @return MediaList. This MediaList should be released with {@link #release()}.
      */
-    public synchronized MediaList getMediaList() {
-        if (mMediaList == null && !isReleased())
-            mMediaList = new MediaList(this);
-        return mMediaList;
+    public MediaList getMediaList() {
+        synchronized (this) {
+            if (mMediaList != null) {
+                mMediaList.retain();
+                return mMediaList;
+            }
+        }
+        final MediaList mediaList = new MediaList(this);
+        synchronized (this) {
+            mMediaList = mediaList;
+            mMediaList.retain();
+            return mMediaList;
+        }
     }
 
     @Override
@@ -79,7 +112,6 @@ public final class MediaDiscoverer extends VLCObject {
     }
 
     /* JNI */
-    private long mInstance = 0; // Read-only, reserved for JNI
     private native void nativeNew(LibVLC libVLC, String name);
     private native void nativeRelease();
     private native boolean nativeStart();

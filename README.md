@@ -10,32 +10,32 @@ Get it via Maven Central
 Just add this dependency to your project and you're good to go.
 
 <pre>dependencies {
-    compile "de.mrmaffen:vlc-android-sdk:1.0.6"
+    compile "de.mrmaffen:vlc-android-sdk:1.6.6"
 }</pre>
 
-Building libvlcjni.so yourself
-------------------------------
+Building the LibVLC Android SDK yourself
+----------------------------------------
 
-To build a fresh version of libvlcjni.so, please follow these steps:
+To build a fresh version of the LibVLC Android SDK please make sure that you have setup your machine correctly
+(You can ignore the steps after and including 'Building'): https://wiki.videolan.org/AndroidCompile
 
-* Set `$ANDROID_SDK` to point to your Android SDK directory
+Afterwards simply run this Gradle command:
+```./gradlew buildVlc```
+  
+The VLC-Android and the VLC repo will now get pulled if they haven't been previously.
+After that's done the compilation process for the ABIs armeabi-v7a, x86 and armeabi gets started.
+Finally the resulting .java files will be copied over into the src/main/java folder of this project.
+The resulting .so files will be copied into src/main/jniLibs.
 
-  ```export ANDROID_SDK=/path/to/android-sdk```
+Building a specific version of the LibVLC Android SDK       
+-----------------------------------------------------
 
-* Set `$ANDROID_NDK` to point to your Android NDK directory
-
-  ```export ANDROID_NDK=/path/to/android-ndk```
-
-* Add some useful binaries to your `$PATH`
-
-  ```export PATH=$PATH:$ANDROID_SDK/platform-tools:$ANDROID_SDK/tools```
-
-* Export the ABI for your device (one of armeabi-v7a, armeabi, x86 or mips):
-
-  ```export ANDROID_ABI=armeabi-v7a```
-
-* Run gradle:
-
-  ```./gradlew updateVlc```
-
-For more information on compiling VLC for use on Android see: https://wiki.videolan.org/AndroidCompile
+If you want to build a specific version (maybe you want a major stable release) you have to 
+checkout the vlc-android git repository at the corresponding commit:
+```
+cd vlc-android          // if this folder doesn't exist yet, simply run ./gradlew cloneVlcAndroid
+git tag                 // to list all release versions
+git checkout {tag-name} // to checkout the git repo at the given tag
+cd ..
+./gradlew buildVlc     // build it        
+```
