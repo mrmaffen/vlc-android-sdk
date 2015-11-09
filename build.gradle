@@ -67,32 +67,49 @@ task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
 // This is the case when we're building for the first time.
 updateVlcCheckout.onlyIf { project.ext.vlcSource.exists() }
 
-task buildVlcArmv7a(type: Exec, dependsOn: 'updateVlcCheckout') {
+task purgeOldFiles(type: Delete, dependsOn: 'updateVlcCheckout') {
+    delete "src/main"
+}
+
+task compileVlcArmv7a(type: Exec, dependsOn: 'purgeOldFiles') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
     args "-a", "armeabi-v7a"
+    args "release" // Remove this to build a debug libvlc
 }
 
-task buildVlcX86(type: Exec, dependsOn: 'buildVlcArmv7a') {
+task buildVlcArmv7a(type: Copy, dependsOn: 'compileVlcArmv7a') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/armeabi-v7a/')
+    into('src/main/jniLibs/armeabi-v7a/')
+}
+
+task compileVlcX86(type: Exec, dependsOn: 'buildVlcArmv7a') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
     args "-a", "x86"
+    args "release" // Remove this to build a debug libvlc
 }
 
-task buildVlcArm(type: Exec, dependsOn: 'buildVlcX86') {
+task buildVlcX86(type: Copy, dependsOn: 'compileVlcX86') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/x86/')
+    into('src/main/jniLibs/x86/')
+}
+
+task compileVlcArm(type: Exec, dependsOn: 'buildVlcX86') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
     args "-a", "armeabi"
+    args "release" // Remove this to build a debug libvlc
 }
 
-task copyJniLibs(type: Copy, dependsOn: 'buildVlcArm') {
-    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/')
-    into('src/main/jniLibs/')
+task buildVlcArm(type: Copy, dependsOn: 'compileVlcArm') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/armeabi/')
+    into('src/main/jniLibs/armeabi/')
 }
 
-task buildVlc(type: Copy, dependsOn: 'copyJniLibs') {
+task buildVlc(type: Copy, dependsOn: 'buildVlcArm') {
     from(vlcAndroidSource.getAbsolutePath() + '/libvlc/src/')
-    into('src/main/java/')
+    into('src/main/java')
 }
 
 //upload aar to maven central with sonatype
