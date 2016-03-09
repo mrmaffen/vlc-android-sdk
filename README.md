@@ -43,5 +43,5 @@ cd vlc-android          // if this folder doesn't exist yet, simply run ./gradle
 git tag                 // to list all release versions
 git checkout {tag-name} // to checkout the git repo at the given tag
 cd ..
-./gradlew buildVlc     // build it        
+./gradlew buildLibVlc   // build it        
 ```
