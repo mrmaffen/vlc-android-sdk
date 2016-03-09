@@ -9,12 +9,12 @@ buildscript {
 }
 apply plugin: 'com.android.library'
 android {
-    compileSdkVersion 22
-    buildToolsVersion '22.0.1'
+    compileSdkVersion 23
+    buildToolsVersion '23.0.2'
 
     defaultConfig {
         minSdkVersion 9
-        targetSdkVersion 22
+        targetSdkVersion 23
         versionCode 1
         versionName "1.0"
     }
@@ -27,7 +27,8 @@ android {
 }
 
 dependencies {
-    compile "com.android.support:support-v4:23.1.0"
+    compile "com.android.support:support-v4:23.1.1"
+    compile 'com.android.support:support-annotations:23.1.1'
 }
 
 allprojects {
@@ -67,49 +68,98 @@ task updateVlcCheckout(dependsOn: 'cloneVlcAndroid') << {
 // This is the case when we're building for the first time.
 updateVlcCheckout.onlyIf { project.ext.vlcSource.exists() }
 
-task purgeOldFiles(type: Delete, dependsOn: 'updateVlcCheckout') {
-    delete "src/main"
+task purgeOldJniLibs(type: Delete, dependsOn: 'updateVlcCheckout') {
+    delete "src/main/jniLibs"
 }
 
-task compileVlcArmv7a(type: Exec, dependsOn: 'purgeOldFiles') {
+task purgeOldJava(type: Delete, dependsOn: 'purgeOldJniLibs') {
+    delete "src/main/java"
+}
+
+task compileVlcArmv7a(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
     args "-a", "armeabi-v7a"
     args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
 }
 
 task buildVlcArmv7a(type: Copy, dependsOn: 'compileVlcArmv7a') {
     from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/armeabi-v7a/')
     into('src/main/jniLibs/armeabi-v7a/')
+    finalizedBy 'copyLibVlcFiles'
 }
 
-task compileVlcX86(type: Exec, dependsOn: 'buildVlcArmv7a') {
+/*
+task compileVlcArmv8a(type: Exec, dependsOn: 'purgeOldJava') {
+    workingDir project.ext.vlcAndroidSource
+    commandLine './compile.sh'
+    args "-a", "arm64-v8a"
+    args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
+}
+
+task buildVlcArmv8a(type: Copy, dependsOn: 'compileVlcArmv8a') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/arm64-v8a/')
+    into('src/main/jniLibs/arm64-v8a/')
+    finalizedBy 'copyLibVlcFiles'
+}
+*/
+
+task compileVlcMips(type: Exec, dependsOn: 'purgeOldJava') {
+    workingDir project.ext.vlcAndroidSource
+    commandLine './compile.sh'
+    args "-a", "mips"
+    args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
+}
+
+task buildVlcMips(type: Copy, dependsOn: 'compileVlcMips') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/mips/')
+    into('src/main/jniLibs/mips/')
+    finalizedBy 'copyLibVlcFiles'
+}
+
+task compileVlcX86(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
     args "-a", "x86"
     args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
 }
 
 task buildVlcX86(type: Copy, dependsOn: 'compileVlcX86') {
     from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/x86/')
     into('src/main/jniLibs/x86/')
+    finalizedBy 'copyLibVlcFiles'
 }
 
-task compileVlcArm(type: Exec, dependsOn: 'buildVlcX86') {
+/*
+task compileVlcX8664(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
-    args "-a", "armeabi"
+    args "-a", "x86_64"
     args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
 }
 
-task buildVlcArm(type: Copy, dependsOn: 'compileVlcArm') {
-    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/armeabi/')
-    into('src/main/jniLibs/armeabi/')
+task buildVlcX8664(type: Copy, dependsOn: 'compileVlcX8664') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/x86_64/')
+    into('src/main/jniLibs/x86_64/')
+    finalizedBy 'copyLibVlcFiles'
 }
+*/
 
-task buildVlc(type: Copy, dependsOn: 'buildVlcArm') {
+task copyLibVlcFiles(type: Copy) {
     from(vlcAndroidSource.getAbsolutePath() + '/libvlc/src/')
     into('src/main/java')
+}
+
+task buildLibVlc() {
+}
+
+buildLibVlc.dependsOn {
+    tasks.findAll { task -> task.name.startsWith('buildVlc') }
 }
 
 //upload aar to maven central with sonatype

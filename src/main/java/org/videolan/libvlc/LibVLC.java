@@ -28,6 +28,7 @@ import android.view.Surface;
 
 import org.videolan.libvlc.util.HWDecoderUtil;
 
+@SuppressWarnings("unused, JniMissingFunction")
 public class LibVLC extends VLCObject<LibVLC.Event> {
     private static final String TAG = "VLC/LibVLC";
 
@@ -40,16 +41,14 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
     /** Native crash handler */
     private static OnNativeCrashListener sOnNativeCrashListener;
 
-    public interface HardwareAccelerationError {
-        void eventHardwareAccelerationError(); // TODO REMOVE
-    }
-
     /**
      * Create a LibVLC withs options
      *
      * @param options
      */
     public LibVLC(ArrayList<String> options) {
+        loadLibraries();
+
         boolean setAout = true, setChroma = true;
         // check if aout/vout options are already set
         if (options != null) {
@@ -90,11 +89,6 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
         this(null);
     }
 
-    public void setOnHardwareAccelerationError(HardwareAccelerationError error) {
-        nativeSetOnHardwareAccelerationError(error);
-    }
-    private native void nativeSetOnHardwareAccelerationError(HardwareAccelerationError error);
-
     /**
      * Get the libVLC version
      * @return the libVLC version string
@@ -123,8 +117,8 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
         nativeRelease();
     }
 
-    public static interface OnNativeCrashListener {
-        public void onNativeCrash();
+    public interface OnNativeCrashListener {
+        void onNativeCrash();
     }
 
     public static void setOnNativeCrashListener(OnNativeCrashListener l) {
@@ -151,9 +145,15 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
     private native void nativeNew(String[] options);
     private native void nativeRelease();
     private native void nativeSetUserAgent(String name, String http);
+    
+    private static boolean sLoaded = false;
 
-    /* Load library before object instantiation */
-    static {
+    static synchronized void loadLibraries() {
+        if (sLoaded)
+            return;
+        sLoaded = true;
+
+        System.loadLibrary("compat.7");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
             try {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB_MR1)
@@ -189,6 +189,7 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
         }
 
         try {
+            System.loadLibrary("vlc");
             System.loadLibrary("vlcjni");
         } catch (UnsatisfiedLinkError ule) {
             Log.e(TAG, "Can't load vlcjni library: " + ule);

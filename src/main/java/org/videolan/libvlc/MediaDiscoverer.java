@@ -20,7 +20,9 @@
 
 package org.videolan.libvlc;
 
-@SuppressWarnings("unused")
+import android.support.annotation.Nullable;
+
+@SuppressWarnings("unused, JniMissingFunction")
 public class MediaDiscoverer extends VLCObject<MediaDiscoverer.Event> {
     private final static String TAG = "LibVLC/MediaDiscoverer";
 
@@ -32,6 +34,35 @@ public class MediaDiscoverer extends VLCObject<MediaDiscoverer.Event> {
         protected Event(int type) {
             super(type);
         }
+    }
+
+    public static class Description {
+        public static class Category {
+            /** devices, like portable music player */
+            public static final int Devices = 0;
+            /** LAN/WAN services, like Upnp, SMB, or SAP */
+            public static final int Lan = 1;
+            /** Podcasts */
+            public static final int Podcasts = 2;
+            /** Local directories, like Video, Music or Pictures directories */
+            public static final int LocalDirs = 3;
+        }
+        public final String name;
+        public final String longName;
+        public final int category;
+
+        private Description(String name, String longName, int category)
+        {
+            this.name = name;
+            this.longName = longName;
+            this.category = category;
+        }
+    }
+
+    @SuppressWarnings("unused") /* Used from JNI */
+    private static Description createDescriptionFromNative(String name, String longName, int category)
+    {
+        return new Description(name, longName, category);
     }
 
     public interface EventListener extends VLCEvent.Listener<MediaDiscoverer.Event> {}
@@ -111,9 +142,19 @@ public class MediaDiscoverer extends VLCObject<MediaDiscoverer.Event> {
         nativeRelease();
     }
 
+    /**
+     * Get media discoverers by category
+     * @param category see {@link Description.Category}
+     */
+    @Nullable
+    public static Description[] list(LibVLC libVLC, int category) {
+        return nativeList(libVLC, category);
+    }
+
     /* JNI */
     private native void nativeNew(LibVLC libVLC, String name);
     private native void nativeRelease();
     private native boolean nativeStart();
     private native void nativeStop();
+    private static native Description[] nativeList(LibVLC libVLC, int category);
 }

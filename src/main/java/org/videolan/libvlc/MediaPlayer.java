@@ -22,11 +22,11 @@
 
 package org.videolan.libvlc;
 
-@SuppressWarnings("unused")
+@SuppressWarnings("unused, JniMissingFunction")
 public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
 
     public static class Event extends VLCEvent {
-        //public static final int MediaChanged        = 0x100;
+        public static final int MediaChanged        = 0x100;
         //public static final int NothingSpecial      = 0x101;
         public static final int Opening             = 0x102;
         //public static final int Buffering           = 0x103;
@@ -50,23 +50,16 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
         public static final int ESDeleted           = 0x115;
         //public static final int ESSelected          = 0x116;
 
-        private final long arg1;
-        private final float arg2;
         protected Event(int type) {
             super(type);
-            this.arg1 = 0;
-            this.arg2 = 0;
         }
         protected Event(int type, long arg1) {
-            super(type);
-            this.arg1 = arg1;
-            this.arg2 = 0;
+            super(type, arg1);
         }
         protected Event(int type, float arg2) {
-            super(type);
-            this.arg1 = 0;
-            this.arg2 = arg2;
+            super(type, arg2);
         }
+
         public long getTimeChanged() {
             return arg1;
         }
@@ -111,6 +104,10 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
     }
 
     public static class Title {
+        private static class Flags {
+            public static final int MENU = 0x01;
+            public static final int INTERACTIVE = 0x02;
+        };
         /**
          * duration in milliseconds
          */
@@ -124,18 +121,26 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
         /**
          * true if the title is a menu
          */
-        public final boolean menu;
+        private final int flags;
 
-        public Title(long duration, String name, boolean menu) {
+        public Title(long duration, String name, int flags) {
             this.duration = duration;
             this.name = name;
-            this.menu = menu;
+            this.flags = flags;
+        }
+
+        public boolean isMenu() {
+            return (this.flags & Flags.MENU) != 0;
+        }
+
+        public boolean isInteractive() {
+            return (this.flags & Flags.INTERACTIVE) != 0;
         }
     }
 
     @SuppressWarnings("unused") /* Used from JNI */
-    private static Title createTitleFromNative(long duration, String name, boolean menu) {
-        return new Title(duration, name, menu);
+    private static Title createTitleFromNative(long duration, String name, int flags) {
+        return new Title(duration, name, flags);
     }
 
     public static class Chapter {
@@ -373,7 +378,7 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
      * @param libVLC a valid libVLC
      */
     public MediaPlayer(LibVLC libVLC) {
-        nativeNewFromLibVlc(libVLC, mWindow);
+        nativeNewFromLibVlc(libVLC, mWindow.getNativeHandler());
     }
 
     /**
@@ -386,7 +391,7 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
             throw new IllegalArgumentException("Media is null or released");
         mMedia = media;
         mMedia.retain();
-        nativeNewFromMedia(mMedia, mWindow);
+        nativeNewFromMedia(mMedia, mWindow.getNativeHandler());
     }
 
     /**
@@ -558,10 +563,15 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
         return nativeSetVideoTrack(index);
     }
 
-    private void setVideoTrackEnabled(boolean enabled) {
+    /**
+     * Set the enabled state of the video track
+     *
+     * @param enabled
+     */
+    public void setVideoTrackEnabled(boolean enabled) {
         if (!enabled) {
             setVideoTrack(-1);
-        } else {
+        } else if (getVideoTrack() == -1) {
             final MediaPlayer.TrackDescription tracks[] = getVideoTracks();
 
             if (tracks != null) {
@@ -801,6 +811,7 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
     @Override
     protected synchronized Event onEventNative(int eventType, long arg1, float arg2) {
         switch (eventType) {
+            case Event.MediaChanged:
             case Event.Stopped:
             case Event.EndReached:
             case Event.EncounteredError:
@@ -835,8 +846,8 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
     }
 
     /* JNI */
-    private native void nativeNewFromLibVlc(LibVLC libVLC, IAWindowNativeHandler window);
-    private native void nativeNewFromMedia(Media media, IAWindowNativeHandler window);
+    private native void nativeNewFromLibVlc(LibVLC libVLC, AWindowNativeHandler window);
+    private native void nativeNewFromMedia(Media media, AWindowNativeHandler window);
     private native void nativeRelease();
     private native void nativeSetMedia(Media media);
     private native void nativePlay();
