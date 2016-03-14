@@ -19,6 +19,8 @@ Just add this dependency to your project and you're good to go.
     compile "de.mrmaffen:vlc-android-sdk:1.9.0"
 }</pre>
 
+**NOTE: 1.9.0 is the latest version! Please ignore the old version 3.0.0.**
+
 Building the LibVLC Android SDK yourself
 ----------------------------------------
 
