@@ -46,7 +46,7 @@ project.ext.vlcAndroidSource = file('vlc-android')
 project.ext.vlcSource = file('vlc-android/vlc')
 
 task cloneVlcAndroid << {
-    Grgit.clone(uri: 'http://git.videolan.org/git/vlc-ports/android.git',
+    Grgit.clone(uri: 'https://code.videolan.org/videolan/vlc-android.git',
             dir: project.ext.vlcAndroidSource)
 }
 
