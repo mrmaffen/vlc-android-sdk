@@ -22,6 +22,9 @@
 
 package org.videolan.libvlc.media;
 
+import org.videolan.libvlc.LibVLC;
+import org.videolan.libvlc.Media;
+
 import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.MediaFormat;
@@ -31,9 +34,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-
-import org.videolan.libvlc.LibVLC;
-import org.videolan.libvlc.Media;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -157,7 +157,6 @@ public class MediaPlayer
     }
 
     public void pause() throws IllegalStateException {
-        // FIXME, this is toggling for now.
         mMediaPlayer.pause();
     }
 

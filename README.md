@@ -16,10 +16,10 @@ Get it via Maven Central
 Just add this dependency to your project and you're good to go.
 
 <pre>dependencies {
-    compile "de.mrmaffen:vlc-android-sdk:1.9.0"
+    compile "de.mrmaffen:vlc-android-sdk:1.9.8"
 }</pre>
 
-**NOTE: 1.9.0 is the latest version! Please ignore the old version 3.0.0.**
+**NOTE: 1.9.8 is the latest version! Please ignore the old version 3.0.0.**
 
 Building the LibVLC Android SDK yourself
 ----------------------------------------
