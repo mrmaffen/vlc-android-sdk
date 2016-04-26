@@ -163,4 +163,4 @@ buildLibVlc.dependsOn {
 }
 
 //upload aar to maven central with sonatype
-apply from: 'https://raw.github.com/chrisbanes/gradle-mvn-push/8cfffbbff6b9094af1c92318ea5d5a5bb0b8bb30/gradle-mvn-push.gradle'
+apply from: 'https://raw.githubusercontent.com/chrisbanes/gradle-mvn-push/97de89785bdbf0bc0b380fb60851cabc552811dc/gradle-mvn-push.gradle'
