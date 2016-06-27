@@ -24,6 +24,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+	lintOptions {
+		abortOnError false
+	}
+
 }
 
 dependencies {
@@ -76,6 +80,20 @@ task purgeOldJava(type: Delete, dependsOn: 'purgeOldJniLibs') {
     delete "src/main/java"
 }
 
+task compileVlcArmv6(type: Exec, dependsOn: 'purgeOldJava') {
+    workingDir project.ext.vlcAndroidSource
+    commandLine './compile.sh'
+    args "-a", "armeabi"
+    args "release" // Remove this to build a debug libvlc
+    args "-l" // only build libvlc
+}
+
+task buildVlcArmv6(type: Copy, dependsOn: 'compileVlcArmv6') {
+    from(vlcAndroidSource.getAbsolutePath() + '/libvlc/jni/libs/armeabi/')
+    into('src/main/jniLibs/armeabi/')
+    finalizedBy 'copyLibVlcFiles'
+}
+
 task compileVlcArmv7a(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
@@ -90,7 +108,6 @@ task buildVlcArmv7a(type: Copy, dependsOn: 'compileVlcArmv7a') {
     finalizedBy 'copyLibVlcFiles'
 }
 
-/*
 task compileVlcArmv8a(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
@@ -104,7 +121,7 @@ task buildVlcArmv8a(type: Copy, dependsOn: 'compileVlcArmv8a') {
     into('src/main/jniLibs/arm64-v8a/')
     finalizedBy 'copyLibVlcFiles'
 }
-*/
+
 
 task compileVlcMips(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
@@ -134,7 +151,7 @@ task buildVlcX86(type: Copy, dependsOn: 'compileVlcX86') {
     finalizedBy 'copyLibVlcFiles'
 }
 
-/*
+
 task compileVlcX8664(type: Exec, dependsOn: 'purgeOldJava') {
     workingDir project.ext.vlcAndroidSource
     commandLine './compile.sh'
@@ -148,7 +165,7 @@ task buildVlcX8664(type: Copy, dependsOn: 'compileVlcX8664') {
     into('src/main/jniLibs/x86_64/')
     finalizedBy 'copyLibVlcFiles'
 }
-*/
+
 
 task copyLibVlcFiles(type: Copy) {
     from(vlcAndroidSource.getAbsolutePath() + '/libvlc/src/')
@@ -163,4 +180,4 @@ buildLibVlc.dependsOn {
 }
 
 //upload aar to maven central with sonatype
-apply from: 'https://raw.githubusercontent.com/chrisbanes/gradle-mvn-push/97de89785bdbf0bc0b380fb60851cabc552811dc/gradle-mvn-push.gradle'
+//apply from: 'https://raw.githubusercontent.com/chrisbanes/gradle-mvn-push/97de89785bdbf0bc0b380fb60851cabc552811dc/gradle-mvn-push.gradle'

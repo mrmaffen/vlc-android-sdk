@@ -22,6 +22,10 @@
 
 package org.videolan.libvlc;
 
+import android.net.Uri;
+
+import java.io.File;
+
 @SuppressWarnings("unused, JniMissingFunction")
 public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
 
@@ -29,7 +33,7 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
         public static final int MediaChanged        = 0x100;
         //public static final int NothingSpecial      = 0x101;
         public static final int Opening             = 0x102;
-        //public static final int Buffering           = 0x103;
+        public static final int Buffering           = 0x103;
         public static final int Playing             = 0x104;
         public static final int Paused              = 0x105;
         public static final int Stopped             = 0x106;
@@ -77,6 +81,9 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
         }
         public boolean getSeekable() {
             return arg1 != 0;
+        }
+        public float getBuffering() {
+            return arg2;
         }
     }
 
@@ -358,17 +365,6 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
             }
             if (disableVideo)
                 setVideoTrackEnabled(false);
-            synchronized (MediaPlayer.this) {
-                /* Wait for Vout destruction (mVoutCount = 0) in order to be sure that the surface is not
-                 * used after leaving this callback. This shouldn't be needed when using MediaCodec or
-                 * AndroidWindow (i.e. after Android 2.3) since the surface is ref-counted */
-                while (mVoutCount > 0) {
-                    try {
-                        MediaPlayer.this.wait();
-                    } catch (InterruptedException ignored) {
-                    }
-                }
-            }
         }
     });
 
@@ -582,6 +578,13 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
                 for (MediaPlayer.TrackDescription track : tracks) {
                     if (track.id != -1) {
                         setVideoTrack(track.id);
+                        /* HACK: flush when activating a video track. This will force an
+                         * I-Frame to be displayed right away. */
+                        if (isSeekable()) {
+                            long time = getTime();
+                            if (time > 0)
+                                setTime(time);
+                        }
                         break;
                     }
                 }
@@ -717,13 +720,25 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
     }
 
     /**
-     * Set a new video subtitle file.
+     * Add a slave (or subtitle) to the current media player.
      *
-     * @param path local path.
+     * @param type see {@link org.videolan.libvlc.Media.Slave.Type}
+     * @param uri a valid RFC 2396 Uri
      * @return true on success.
      */
-    public boolean setSubtitleFile(String path) {
-        return nativeSetSubtitleFile(path);
+    public boolean addSlave(int type, Uri uri, boolean select) {
+        return nativeAddSlave(type, Media.locationFromUri(uri), select);
+    }
+
+    /**
+     * Add a slave (or subtitle) to the current media player.
+     *
+     * @param type see {@link org.videolan.libvlc.Media.Slave.Type}
+     * @param path a local path
+     * @return true on success.
+     */
+    public boolean addSlave(int type, String path, boolean select) {
+        return addSlave(type, Uri.fromFile(new File(path)), select);
     }
 
     /**
@@ -822,6 +837,8 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
                 mVoutCount = 0;
                 notify();
             case Event.Opening:
+            case Event.Buffering:
+                return new Event(eventType, arg2);
             case Event.Playing:
             case Event.Paused:
                 return new Event(eventType);
@@ -877,6 +894,6 @@ public class MediaPlayer extends VLCObject<MediaPlayer.Event> {
     private native boolean nativeSetSpuTrack(int index);
     private native long nativeGetSpuDelay();
     private native boolean nativeSetSpuDelay(long delay);
-    private native boolean nativeSetSubtitleFile(String path);
+    private native boolean nativeAddSlave(int type, String location, boolean select);
     private native boolean nativeSetEqualizer(Equalizer equalizer);
 }

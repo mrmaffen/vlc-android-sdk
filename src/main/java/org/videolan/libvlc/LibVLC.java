@@ -20,13 +20,12 @@
 
 package org.videolan.libvlc;
 
-import java.util.ArrayList;
-
 import android.os.Build;
 import android.util.Log;
-import android.view.Surface;
 
 import org.videolan.libvlc.util.HWDecoderUtil;
+
+import java.util.ArrayList;
 
 @SuppressWarnings("unused, JniMissingFunction")
 public class LibVLC extends VLCObject<LibVLC.Event> {
@@ -153,7 +152,6 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
             return;
         sLoaded = true;
 
-        System.loadLibrary("compat.7");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
             try {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB_MR1)
@@ -187,6 +185,10 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
                     Log.w(TAG, "Unable to load the iomx library: " + t);
             }
         }
+
+        try {
+            System.loadLibrary("compat.7");
+        } catch (Throwable ignored) {}
 
         try {
             System.loadLibrary("vlc");
