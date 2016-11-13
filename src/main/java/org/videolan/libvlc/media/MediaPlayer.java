@@ -22,9 +22,6 @@
 
 package org.videolan.libvlc.media;
 
-import org.videolan.libvlc.LibVLC;
-import org.videolan.libvlc.Media;
-
 import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.MediaFormat;
@@ -35,6 +32,10 @@ import android.os.Parcelable;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
+import org.videolan.libvlc.LibVLC;
+import org.videolan.libvlc.Media;
+
+import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.util.Map;
@@ -71,7 +72,7 @@ public class MediaPlayer
     private org.videolan.libvlc.MediaPlayer mMediaPlayer;
 
     public MediaPlayer() {
-        mLibVLC = new LibVLC(); //FIXME, this is wrong
+        mLibVLC = new LibVLC(null); //FIXME, this is wrong
         mMediaPlayer = new org.videolan.libvlc.MediaPlayer(mLibVLC);
     }
 
@@ -278,12 +279,11 @@ public class MediaPlayer
     public static final String MEDIA_MIMETYPE_TEXT_SUBRIP = "application/x-subrip";
 
     public void addTimedTextSource(String path, String mimeType) {
-        mMediaPlayer.setSubtitleFile(path);
+        mMediaPlayer.addSlave(Media.Slave.Type.Subtitle, path, false);
     }
 
-    // FIXME: This is incorrect, since libVLC can only add local subtitles
     public void addTimedTextSource(Context context, Uri uri, String mimeType) {
-        mMediaPlayer.setSubtitleFile(uri.getPath());
+        mMediaPlayer.addSlave(Media.Slave.Type.Subtitle, uri, false);
     }
 
     public void addTimedTextSource(FileDescriptor fd, String mimeType)
