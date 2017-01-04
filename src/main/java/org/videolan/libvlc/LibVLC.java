@@ -20,13 +20,13 @@
 
 package org.videolan.libvlc;
 
-import java.util.ArrayList;
-
+import android.content.Context;
 import android.os.Build;
 import android.util.Log;
-import android.view.Surface;
 
 import org.videolan.libvlc.util.HWDecoderUtil;
+
+import java.util.ArrayList;
 
 @SuppressWarnings("unused, JniMissingFunction")
 public class LibVLC extends VLCObject<LibVLC.Event> {
@@ -46,7 +46,7 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
      *
      * @param options
      */
-    public LibVLC(ArrayList<String> options) {
+    public LibVLC(Context context, ArrayList<String> options) {
         loadLibraries();
 
         boolean setAout = true, setChroma = true;
@@ -79,14 +79,14 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
             }
         }
 
-        nativeNew(options.toArray(new String[options.size()]));
+        nativeNew(options.toArray(new String[options.size()]), context.getDir("vlc", Context.MODE_PRIVATE).getAbsolutePath());
     }
 
     /**
      * Create a LibVLC
      */
-    public LibVLC() {
-        this(null);
+    public LibVLC(Context context) {
+        this(context, null);
     }
 
     /**
@@ -142,10 +142,10 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
     }
 
     /* JNI */
-    private native void nativeNew(String[] options);
+    private native void nativeNew(String[] options, String homePath);
     private native void nativeRelease();
     private native void nativeSetUserAgent(String name, String http);
-    
+
     private static boolean sLoaded = false;
 
     static synchronized void loadLibraries() {
@@ -153,7 +153,6 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
             return;
         sLoaded = true;
 
-        System.loadLibrary("compat.7");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
             try {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB_MR1)
@@ -167,7 +166,7 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
                 else
                     System.loadLibrary("anw.21");
             } catch (Throwable t) {
-                Log.w(TAG, "Unable to load the anw library: " + t);
+                Log.d(TAG, "anw library not loaded");
             }
 
             try {
@@ -187,6 +186,10 @@ public class LibVLC extends VLCObject<LibVLC.Event> {
                     Log.w(TAG, "Unable to load the iomx library: " + t);
             }
         }
+
+        try {
+            System.loadLibrary("compat.7");
+        } catch (Throwable ignored) {}
 
         try {
             System.loadLibrary("vlc");

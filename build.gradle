@@ -162,5 +162,7 @@ buildLibVlc.dependsOn {
     tasks.findAll { task -> task.name.startsWith('buildVlc') }
 }
 
+tasks.withType(Javadoc).all { enabled = false }
+
 //upload aar to maven central with sonatype
 apply from: 'https://raw.githubusercontent.com/chrisbanes/gradle-mvn-push/97de89785bdbf0bc0b380fb60851cabc552811dc/gradle-mvn-push.gradle'
