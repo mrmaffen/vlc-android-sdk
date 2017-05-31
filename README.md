@@ -16,7 +16,7 @@ Get it via Maven Central
 Just add this dependency to your project and you're good to go.
 
 <pre>dependencies {
-    compile "de.mrmaffen:vlc-android-sdk:2.0.6"
+     compile 'de.mrmaffen:vlc-android-sdk:3.0.0'
 }</pre>
 
 **NOTE: 2.0.6 is the latest version! Please ignore the old version 3.0.0.**
