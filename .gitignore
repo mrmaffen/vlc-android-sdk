@@ -39,6 +39,7 @@ tmp/**/*
 *.swp
 *~.nib
 local.properties
+libvlc-android/secrets.properties
 .classpath
 .settings/
 .loadpath
