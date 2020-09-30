@@ -10,6 +10,12 @@ Please contact the videolan team directly. I am only publishing LibVLC for Andro
 
 https://trac.videolan.org/vlc
 
+------------------------
+Android VLC Player Download Link:
+https://play.google.com/store/apps/details?id=org.videolan.vlc&hl=en
+
+------------------------
+
 Get it via JCenter
 ------------------------
 Just add this dependency to your project and you're good to go.
